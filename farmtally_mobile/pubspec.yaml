@@ -1,0 +1,100 @@
+name: farmtally_mobile
+description: FarmTally corn procurement management system mobile app
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.16.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  flutter_riverpod: ^2.4.9
+  
+  # Navigation
+  go_router: ^12.1.1
+  
+  # HTTP & API
+  dio: ^5.3.4
+  http: ^1.1.0
+  json_annotation: ^4.8.1
+  
+  # Local Database
+  drift: ^2.14.1
+  sqlite3_flutter_libs: ^0.5.15
+  path_provider: ^2.1.1
+  path: ^1.8.3
+  
+  # Forms & Validation
+  flutter_form_builder: ^10.2.0
+  
+  # UI Components
+  fl_chart: ^0.65.0
+  data_table_2: ^2.5.12
+  # pluto_grid: ^7.0.2  # Temporarily disabled due to intl version conflict
+  image_picker: ^1.0.4
+  file_picker: ^6.1.1
+  cached_network_image: ^3.3.0
+  
+  # Data Models
+  freezed_annotation: ^2.4.1
+  
+  # Utilities
+  shared_preferences: ^2.2.2
+  connectivity_plus: ^5.0.2
+  permission_handler: ^11.1.0
+  device_info_plus: ^9.1.1
+  package_info_plus: ^4.2.0
+  
+  # Firebase & Notifications (disabled for web compatibility)
+  # firebase_core: ^2.24.2
+  # firebase_messaging: ^14.7.9
+  # flutter_local_notifications: ^16.3.0
+  
+  # Authentication & Security
+  local_auth: ^2.1.7
+  crypto: ^3.0.3
+  
+  # Media & Files
+  photo_view: ^0.14.0
+  
+  # Internationalization
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # Code Generation
+  build_runner: ^2.4.7
+  drift_dev: ^2.14.1
+  json_serializable: ^6.7.1
+  freezed: ^2.4.6
+  
+  # Testing
+  mockito: ^5.4.2
+  integration_test:
+    sdk: flutter
+  
+  # Linting
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  
+  # Assets
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/fonts/
+
+flutter_intl:
+  enabled: true
+  class_name: S
+  main_locale: en
+  arb_dir: lib/l10n
+  output_dir: lib/generated

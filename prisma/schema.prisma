@@ -1,0 +1,407 @@
+// FarmTally - Comprehensive Database Schema
+// Production-ready schema for corn procurement management
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique // Organization code for identification
+  address     String?
+  phone       String?
+  email       String?
+  ownerId     String?  // Owner/Admin user ID
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users              User[]
+  lorries            Lorry[]
+  farmers            Farmer[]
+  deliveries         Delivery[]
+  payments           Payment[]
+  advancePayments    AdvancePayment[]
+  lorryRequests      LorryRequest[]
+  reportGenerations  ReportGeneration[]
+  farmerOrganizations FarmerOrganization[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  password       String
+  firstName      String
+  lastName       String
+  phone          String?
+  role           UserRole
+  status         UserStatus @default(PENDING)
+  isActive       Boolean   @default(true)
+  organizationId String
+  profile        Json?     // Additional profile data
+  approvedAt     DateTime?
+  approvedBy     String?
+  rejectedAt     DateTime?
+  rejectedBy     String?
+  rejectionReason String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  organization        Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedLorries     Lorry[]         @relation("AssignedManager")
+  managedDeliveries   Delivery[]      @relation("FieldManager")
+  processedPayments   Payment[]       @relation("ProcessedBy")
+  processedAdvances   AdvancePayment[] @relation("ProcessedBy")
+  lorryRequests       LorryRequest[]
+  reportGenerations   ReportGeneration[]
+  adminActions        AdminAction[]   @relation("AdminActions")
+  targetUserActions   AdminAction[]   @relation("TargetUserActions")
+
+  @@map("users")
+}
+
+model Farmer {
+  id             String   @id @default(cuid())
+  firstName      String
+  lastName       String
+  name           String   // Full name for easy access
+  phone          String   @unique
+  address        String?
+  bankAccount    String?
+  bankDetails    Json?    // Bank account details
+  idNumber       String?  // Aadhaar or other ID
+  organizationId String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries          Delivery[]
+  payments            Payment[]
+  advancePayments     AdvancePayment[]
+  farmerOrganizations FarmerOrganization[]
+
+  @@map("farmers")
+}
+
+model FarmerOrganization {
+  id             String   @id @default(cuid())
+  farmerId       String
+  organizationId String
+  isActive       Boolean  @default(true)
+  joinedAt       DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  farmer         Farmer       @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([farmerId, organizationId])
+  @@map("farmer_organizations")
+}
+
+model Lorry {
+  id                String      @id @default(cuid())
+  plateNumber       String      @unique
+  licensePlate      String      @unique // Alternative field name used in services
+  capacity          Float       // in tons
+  status            LorryStatus @default(AVAILABLE)
+  assignedToId      String?
+  assignedManagerId String?     // Field manager assigned to this lorry
+  organizationId    String
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedTo        User?          @relation("AssignedManager", fields: [assignedManagerId], references: [id])
+  deliveries        Delivery[]
+  requests          LorryRequest[]
+
+  @@map("lorries")
+}
+
+model LorryRequest {
+  id                String          @id @default(cuid())
+  managerId         String
+  organizationId    String
+  purpose           String
+  location          String
+  requestedDate     DateTime
+  estimatedFarmers  Int
+  estimatedWeight   Float           // in kg
+  priority          RequestPriority @default(NORMAL)
+  status            RequestStatus   @default(PENDING)
+  notes             String?
+  assignedLorryId   String?
+  assignedLorryNumber String?       // Lorry plate number when assigned
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  manager           User         @relation(fields: [managerId], references: [id])
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedLorry     Lorry?       @relation(fields: [assignedLorryId], references: [id])
+
+  @@map("lorry_requests")
+}
+
+model Delivery {
+  id                String         @id @default(cuid())
+  lorryId           String
+  farmerId          String
+  fieldManagerId    String
+  organizationId    String
+  
+  // Weight and Quality Details
+  bagsCount         Int            // Number of bags
+  individualWeights Json           // Array of individual bag weights
+  grossWeight       Float          // Total gross weight in kg
+  moistureContent   Float?         // Moisture percentage
+  qualityGrade      QualityGrade?
+  standardDeduction Float?         @default(0) // Standard deduction in kg
+  qualityDeduction  Float?         @default(0) // Quality-based deduction in kg
+  netWeight         Float          // Final net weight after deductions
+  
+  // Financial Details
+  pricePerKg        Float?
+  totalValue        Float?         // Gross value before deductions
+  advanceAmount     Float?         @default(0) // Advance paid
+  interestCharges   Float?         @default(0) // Interest on advance
+  finalAmount       Float?         // Final amount payable
+  
+  // Status and Timing
+  status            DeliveryStatus @default(PENDING)
+  deliveryDate      DateTime?      // When delivery was made
+  deliveredAt       DateTime?      // Alternative field name
+  processedAt       DateTime?
+  
+  // Additional Fields
+  photos            Json?          // Array of photo URLs
+  notes             String?        // Delivery notes
+  
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lorry             Lorry        @relation(fields: [lorryId], references: [id])
+  farmer            Farmer       @relation(fields: [farmerId], references: [id])
+  fieldManager      User         @relation("FieldManager", fields: [fieldManagerId], references: [id])
+  bags              Bag[]
+  payments          Payment[]
+
+  @@map("deliveries")
+}
+
+model Bag {
+  id         String   @id @default(cuid())
+  deliveryId String
+  weight     Float    // in kg
+  bagNumber  Int
+  createdAt  DateTime @default(now())
+
+  // Relations
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@map("bags")
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  deliveryId     String?
+  farmerId       String
+  organizationId String
+  processedById  String
+  
+  amount         Float
+  type           PaymentType
+  status         PaymentStatus @default(PENDING)
+  reference      String?
+  notes          String?
+  
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  delivery       Delivery?    @relation(fields: [deliveryId], references: [id])
+  farmer         Farmer       @relation(fields: [farmerId], references: [id])
+  processedBy    User         @relation("ProcessedBy", fields: [processedById], references: [id])
+
+  @@map("payments")
+}
+
+model AdvancePayment {
+  id             String        @id @default(cuid())
+  farmerId       String
+  organizationId String
+  processedById  String
+  
+  amount         Float
+  interestRate   Float?        @default(0) // Interest rate percentage
+  dueDate        DateTime?
+  status         PaymentStatus @default(PENDING)
+  reference      String?
+  notes          String?
+  
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  farmer         Farmer       @relation(fields: [farmerId], references: [id])
+  processedBy    User         @relation("ProcessedBy", fields: [processedById], references: [id])
+
+  @@map("advance_payments")
+}
+
+model ReportGeneration {
+  id             String      @id @default(cuid())
+  userId         String
+  organizationId String
+  reportType     ReportType
+  parameters     Json        // Report parameters and filters
+  filePath       String?     // Generated file path
+  status         ReportStatus @default(GENERATING)
+  generatedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relations
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("report_generations")
+}
+
+// Enums
+enum UserRole {
+  APPLICATION_ADMIN
+  FARM_ADMIN
+  FIELD_MANAGER
+  FARMER
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum LorryStatus {
+  AVAILABLE
+  ASSIGNED
+  LOADING
+  SUBMITTED
+  SENT_TO_DEALER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum RequestPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum DeliveryStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum QualityGrade {
+  A
+  B
+  C
+  D
+  REJECTED
+}
+
+enum PaymentType {
+  ADVANCE
+  SETTLEMENT
+  BONUS
+  DEDUCTION
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum ReportType {
+  FARMER_SETTLEMENT
+  LORRY_SUMMARY
+  DELIVERY_REPORT
+  PAYMENT_HISTORY
+  ADVANCE_SUMMARY
+}
+
+model Invitation {
+  id                String   @id @default(cuid())
+  email             String
+  role              UserRole
+  organizationName  String
+  invitationToken   String   @unique
+  invitedBy         String
+  firstName         String?
+  lastName          String?
+  message           String?
+  isUsed            Boolean  @default(false)
+  usedAt            DateTime?
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("invitations")
+}
+
+model AdminAction {
+  id           String   @id @default(cuid())
+  adminId      String
+  targetUserId String?
+  action       String   // APPROVE_FARM_ADMIN, REJECT_FARM_ADMIN, etc.
+  details      String?  // Additional details about the action
+  createdAt    DateTime @default(now())
+
+  // Relations
+  admin        User     @relation("AdminActions", fields: [adminId], references: [id])
+  targetUser   User?    @relation("TargetUserActions", fields: [targetUserId], references: [id])
+
+  @@map("admin_actions")
+}
+
+enum ReportStatus {
+  GENERATING
+  COMPLETED
+  FAILED
+}
