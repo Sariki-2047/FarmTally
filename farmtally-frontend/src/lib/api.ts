@@ -257,18 +257,25 @@ class ApiClient {
   }
 
   async getPendingFarmAdmins(): Promise<ApiResponse<any>> {
-    return this.request('/admin/pending-farm-admins');
+    return this.request('/system-admin/users/pending');
   }
 
   async reviewFarmAdmin(userId: string, approved: boolean, rejectionReason?: string): Promise<ApiResponse<any>> {
-    return this.request('/admin/review-farm-admin', {
-      method: 'POST',
-      body: JSON.stringify({
-        userId,
-        approved,
-        rejectionReason,
-      }),
-    });
+    if (approved) {
+      return this.request(`/system-admin/users/${userId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({
+          approvalNotes: 'Approved by system administrator'
+        }),
+      });
+    } else {
+      return this.request(`/system-admin/users/${userId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({
+          rejectionReason: rejectionReason || 'Registration rejected by system administrator'
+        }),
+      });
+    }
   }
 
   async getAllFarmAdmins(): Promise<ApiResponse<any>> {
