@@ -11,7 +11,7 @@ import {
   Wifi, 
   HardDrive, 
   Cpu, 
-  Memory, 
+  MemoryStick, 
   Activity,
   CheckCircle,
   AlertTriangle,
@@ -207,7 +207,7 @@ export default function SystemHealthPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     {metric.name === "CPU Usage" && <Cpu className="h-4 w-4" />}
-                    {metric.name === "Memory Usage" && <Memory className="h-4 w-4" />}
+                    {metric.name === "Memory Usage" && <MemoryStick className="h-4 w-4" />}
                     {metric.name === "Disk Usage" && <HardDrive className="h-4 w-4" />}
                     {metric.name === "Network I/O" && <Wifi className="h-4 w-4" />}
                     <span className="font-medium">{metric.name}</span>
