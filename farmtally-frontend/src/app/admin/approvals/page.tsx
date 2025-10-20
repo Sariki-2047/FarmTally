@@ -16,7 +16,6 @@ import { toast } from "sonner";
 import { 
   UserCheck, 
   UserX, 
-  Eye, 
   Building2, 
   Mail, 
   Calendar,
@@ -28,13 +27,13 @@ import { format } from "date-fns";
 interface PendingFarmAdmin {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
   role: string;
-  status: string;
-  organizationName: string;
-  createdAt: string;
-  updatedAt: string;
+  profile: {
+    firstName: string;
+    lastName: string;
+  };
+  organization_id: string | null;
+  created_at: string;
 }
 
 export default function ApprovalsPage() {
@@ -153,7 +152,7 @@ export default function ApprovalsPage() {
                     <TableCell>
                       <div className="space-y-1">
                         <div className="font-medium">
-                          {admin.firstName} {admin.lastName}
+                          {admin.profile?.firstName || 'Unknown'} {admin.profile?.lastName || 'User'}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <Mail className="mr-1 h-3 w-3" />
@@ -164,18 +163,20 @@ export default function ApprovalsPage() {
                     <TableCell>
                       <div className="flex items-center">
                         <Building2 className="mr-2 h-4 w-4 text-gray-400" />
-                        <span className="font-medium">{admin.organizationName}</span>
+                        <span className="font-medium">
+                          {admin.organization_id ? 'Organization Created' : 'New Organization'}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center text-sm text-gray-600">
                         <Calendar className="mr-1 h-3 w-3" />
-                        {format(new Date(admin.createdAt), 'MMM dd, yyyy')}
+                        {format(new Date(admin.created_at), 'MMM dd, yyyy')}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                        {admin.status}
+                        PENDING
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -224,8 +225,7 @@ export default function ApprovalsPage() {
               {selectedAdmin && (
                 <>
                   You are about to {reviewAction} the Farm Admin registration for{' '}
-                  <strong>{selectedAdmin.firstName} {selectedAdmin.lastName}</strong> from{' '}
-                  <strong>{selectedAdmin.organizationName}</strong>.
+                  <strong>{selectedAdmin.profile?.firstName} {selectedAdmin.profile?.lastName}</strong>.
                 </>
               )}
             </DialogDescription>
@@ -234,10 +234,10 @@ export default function ApprovalsPage() {
           {selectedAdmin && (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                <div><strong>Name:</strong> {selectedAdmin.firstName} {selectedAdmin.lastName}</div>
+                <div><strong>Name:</strong> {selectedAdmin.profile?.firstName} {selectedAdmin.profile?.lastName}</div>
                 <div><strong>Email:</strong> {selectedAdmin.email}</div>
-                <div><strong>Organization:</strong> {selectedAdmin.organizationName}</div>
-                <div><strong>Registration Date:</strong> {format(new Date(selectedAdmin.createdAt), 'PPP')}</div>
+                <div><strong>Role:</strong> {selectedAdmin.role}</div>
+                <div><strong>Registration Date:</strong> {format(new Date(selectedAdmin.created_at), 'PPP')}</div>
               </div>
 
               {reviewAction === 'reject' && (
