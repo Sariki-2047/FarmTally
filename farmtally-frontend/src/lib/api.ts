@@ -40,8 +40,24 @@ export interface User {
 }
 
 export interface AuthResponse {
-  token: string;
-  user: User;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+  };
+  user: {
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    profile?: {
+      firstName?: string;
+      lastName?: string;
+      first_name?: string;
+      last_name?: string;
+    };
+    organization?: any;
+    organization_id?: string;
+  };
 }
 
 class ApiClient {
@@ -111,10 +127,16 @@ class ApiClient {
 
   // Authentication endpoints
   async login(credentials: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-    return this.request<AuthResponse>('/auth/login', {
+    console.log('🌐 API Client: Making login request to:', `${this.baseURL}/auth/login`);
+    console.log('📧 API Client: Email:', credentials.email);
+    
+    const result = await this.request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
+    
+    console.log('📡 API Client: Login response:', result);
+    return result;
   }
 
   async register(userData: RegisterRequest): Promise<ApiResponse<AuthResponse>> {

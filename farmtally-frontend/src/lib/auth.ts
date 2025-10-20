@@ -29,7 +29,53 @@ export const useAuthStore = create<AuthState>()(
       login: async (credentials: LoginRequest) => {
         set({ isLoading: true });
         try {
+          console.log('🔐 Auth store: Starting login...');
           const response = await apiClient.login(credentials);
+          console.log('📡 Auth store: API response:', response);
+          
+          if (response.success && response.data) {
+            const { tokens, user } = response.data;
+            const token = tokens.accessToken;
+            console.log('🎫 Auth store: Got token:', token ? 'YES' : 'NO');
+            
+            apiClient.setToken(token);
+            
+            // Transform user data to match expected format
+            const transformedUser = {
+              id: user.id,
+              email: user.email,
+              firstName: user.profile?.firstName || user.profile?.first_name || '',
+              lastName: user.profile?.lastName || user.profile?.last_name || '',
+              role: user.role,
+              status: user.status,
+              organization: user.organization || { id: '', name: '' }
+            };
+            
+            console.log('👤 Auth store: Transformed user:', transformedUser);
+            
+            set({
+              user: transformedUser,
+              token,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+            
+            console.log('✅ Auth store: Login successful');
+          } else {
+            console.error('❌ Auth store: Invalid response structure');
+            throw new Error(response.message || 'Login failed');
+          }
+        } catch (error) {
+          console.error('❌ Auth store: Login error:', error);
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      register: async (userData: RegisterRequest) => {
+        set({ isLoading: true });
+        try {
+          const response = await apiClient.register(userData);
           if (response.success && response.data) {
             const { tokens, user } = response.data;
             const token = tokens.accessToken;
@@ -48,28 +94,6 @@ export const useAuthStore = create<AuthState>()(
             
             set({
               user: transformedUser,
-              token,
-              isAuthenticated: true,
-              isLoading: false,
-            });
-          } else {
-            throw new Error(response.message || 'Login failed');
-          }
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
-      },
-
-      register: async (userData: RegisterRequest) => {
-        set({ isLoading: true });
-        try {
-          const response = await apiClient.register(userData);
-          if (response.success && response.data) {
-            const { token, user } = response.data;
-            apiClient.setToken(token);
-            set({
-              user,
               token,
               isAuthenticated: true,
               isLoading: false,
