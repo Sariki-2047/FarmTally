@@ -1,201 +1,403 @@
-const http = require('http');
-const https = require('https');
+#!/usr/bin/env node
 
-class PerformanceMonitor {
-  constructor(baseUrl = 'http://localhost:3000') {
-    this.baseUrl = baseUrl;
-    this.results = [];
-  }
+/**
+ * Performance Testing Script for Pipeline Components
+ * Tests build performance, resource usage, and identifies bottlenecks
+ */
 
-  async makeRequest(path, method = 'GET', data = null, headers = {}) {
-    return new Promise((resolve, reject) => {
-      const url = new URL(path, this.baseUrl);
-      const isHttps = url.protocol === 'https:';
-      const client = isHttps ? https : http;
+const { spawn, exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
-      const options = {
-        hostname: url.hostname,
-        port: url.port || (isHttps ? 443 : 80),
-        path: url.pathname + url.search,
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
-      };
+class PerformanceTest {
+    constructor() {
+        this.results = {
+            timestamp: new Date().toISOString(),
+            system: {
+                platform: os.platform(),
+                arch: os.arch(),
+                cpus: os.cpus().length,
+                totalMemory: Math.round(os.totalmem() / 1024 / 1024) // MB
+            },
+            tests: []
+        };
+    }
 
-      const startTime = Date.now();
-      
-      const req = client.request(options, (res) => {
-        let body = '';
-        res.on('data', (chunk) => {
-          body += chunk;
-        });
+    /**
+     * Run performance test for a command
+     */
+    async testCommand(name, command, options = {}) {
+        console.log(`\n=== Testing: ${name} ===`);
         
-        res.on('end', () => {
-          const endTime = Date.now();
-          const responseTime = endTime - startTime;
-          
-          resolve({
-            statusCode: res.statusCode,
-            responseTime,
-            body,
-            headers: res.headers,
-          });
+        const startTime = Date.now();
+        const startMemory = process.memoryUsage();
+        const startCpu = process.cpuUsage();
+
+        try {
+            const result = await this.executeCommand(command, options);
+            const endTime = Date.now();
+            const endMemory = process.memoryUsage();
+            const endCpu = process.cpuUsage(startCpu);
+
+            const testResult = {
+                name: name,
+                command: command,
+                status: 'success',
+                duration: endTime - startTime,
+                durationSeconds: Math.round((endTime - startTime) / 1000 * 100) / 100,
+                memory: {
+                    heapUsed: Math.round((endMemory.heapUsed - startMemory.heapUsed) / 1024 / 1024 * 100) / 100, // MB
+                    heapTotal: Math.round(endMemory.heapTotal / 1024 / 1024 * 100) / 100, // MB
+                    external: Math.round(endMemory.external / 1024 / 1024 * 100) / 100 // MB
+                },
+                cpu: {
+                    user: Math.round(endCpu.user / 1000), // microseconds to milliseconds
+                    system: Math.round(endCpu.system / 1000)
+                },
+                output: result.stdout ? result.stdout.substring(0, 500) : '', // First 500 chars
+                error: result.stderr ? result.stderr.substring(0, 500) : ''
+            };
+
+            console.log(`✓ ${name}: ${testResult.durationSeconds}s, Memory: ${testResult.memory.heapUsed}MB`);
+            this.results.tests.push(testResult);
+            return testResult;
+
+        } catch (error) {
+            const endTime = Date.now();
+            const testResult = {
+                name: name,
+                command: command,
+                status: 'failed',
+                duration: endTime - startTime,
+                durationSeconds: Math.round((endTime - startTime) / 1000 * 100) / 100,
+                error: error.message,
+                output: error.stdout || '',
+                stderr: error.stderr || ''
+            };
+
+            console.log(`✗ ${name}: FAILED after ${testResult.durationSeconds}s - ${error.message}`);
+            this.results.tests.push(testResult);
+            return testResult;
+        }
+    }
+
+    /**
+     * Execute a command and return promise
+     */
+    executeCommand(command, options = {}) {
+        return new Promise((resolve, reject) => {
+            const isWindows = process.platform === 'win32';
+            const shell = isWindows ? 'cmd' : 'bash';
+            const shellFlag = isWindows ? '/c' : '-c';
+
+            const child = spawn(shell, [shellFlag, command], {
+                cwd: options.cwd || process.cwd(),
+                env: { ...process.env, ...options.env },
+                stdio: 'pipe'
+            });
+
+            let stdout = '';
+            let stderr = '';
+
+            child.stdout.on('data', (data) => {
+                stdout += data.toString();
+            });
+
+            child.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            child.on('close', (code) => {
+                if (code === 0) {
+                    resolve({ stdout, stderr, code });
+                } else {
+                    const error = new Error(`Command failed with code ${code}`);
+                    error.stdout = stdout;
+                    error.stderr = stderr;
+                    error.code = code;
+                    reject(error);
+                }
+            });
+
+            child.on('error', (error) => {
+                reject(error);
+            });
+
+            // Set timeout if specified
+            if (options.timeout) {
+                setTimeout(() => {
+                    child.kill();
+                    reject(new Error(`Command timed out after ${options.timeout}ms`));
+                }, options.timeout);
+            }
         });
-      });
-
-      req.on('error', (err) => {
-        reject(err);
-      });
-
-      if (data) {
-        req.write(JSON.stringify(data));
-      }
-      
-      req.end();
-    });
-  }
-
-  async testEndpoint(name, path, method = 'GET', data = null, headers = {}, iterations = 10) {
-    console.log(`\n🧪 Testing ${name}...`);
-    const results = [];
-
-    for (let i = 0; i < iterations; i++) {
-      try {
-        const result = await this.makeRequest(path, method, data, headers);
-        results.push(result);
-        process.stdout.write('.');
-      } catch (error) {
-        console.error(`\n❌ Request ${i + 1} failed:`, error.message);
-        results.push({ error: error.message, responseTime: null });
-      }
     }
 
-    const successfulResults = results.filter(r => !r.error && r.statusCode < 400);
-    const responseTimes = successfulResults.map(r => r.responseTime);
-    
-    if (responseTimes.length > 0) {
-      const avgResponseTime = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
-      const minResponseTime = Math.min(...responseTimes);
-      const maxResponseTime = Math.max(...responseTimes);
-      const successRate = (successfulResults.length / iterations) * 100;
+    /**
+     * Test backend build performance
+     */
+    async testBackendBuild() {
+        console.log('\n🔧 Testing Backend Build Performance...');
 
-      console.log(`\n✅ ${name} Results:`);
-      console.log(`   Success Rate: ${successRate.toFixed(1)}%`);
-      console.log(`   Average Response Time: ${avgResponseTime.toFixed(2)}ms`);
-      console.log(`   Min Response Time: ${minResponseTime}ms`);
-      console.log(`   Max Response Time: ${maxResponseTime}ms`);
+        // Test npm install
+        await this.testCommand(
+            'Backend npm install',
+            'npm ci',
+            { timeout: 300000 } // 5 minutes
+        );
 
-      this.results.push({
-        name,
-        successRate,
-        avgResponseTime,
-        minResponseTime,
-        maxResponseTime,
-        iterations,
-      });
-    } else {
-      console.log(`\n❌ ${name}: All requests failed`);
-    }
-  }
+        // Test TypeScript compilation
+        await this.testCommand(
+            'Backend TypeScript build',
+            'npm run build',
+            { timeout: 180000 } // 3 minutes
+        );
 
-  async runHealthCheck() {
-    console.log('🏥 Running Health Check...');
-    try {
-      const result = await this.makeRequest('/health');
-      if (result.statusCode === 200) {
-        console.log('✅ Server is healthy');
-        return true;
-      } else {
-        console.log(`❌ Health check failed with status ${result.statusCode}`);
-        return false;
-      }
-    } catch (error) {
-      console.log(`❌ Health check failed: ${error.message}`);
-      return false;
-    }
-  }
-
-  async runPerformanceTests() {
-    console.log('🚀 Starting Performance Tests...');
-    console.log(`📡 Base URL: ${this.baseUrl}`);
-
-    // Health check first
-    const isHealthy = await this.runHealthCheck();
-    if (!isHealthy) {
-      console.log('❌ Server is not healthy. Aborting performance tests.');
-      return;
+        // Test linting (if available)
+        try {
+            await this.testCommand(
+                'Backend linting',
+                'npm run lint',
+                { timeout: 60000 } // 1 minute
+            );
+        } catch (error) {
+            console.log('Linting not available or failed');
+        }
     }
 
-    // Test various endpoints
-    await this.testEndpoint('Health Check', '/health', 'GET', null, {}, 20);
-    
-    // Test API endpoints (these will fail without authentication, but we can measure response times)
-    await this.testEndpoint('Auth Login (Invalid)', '/api/v1/auth/login', 'POST', {
-      email: 'test@example.com',
-      password: 'wrongpassword'
-    }, {}, 10);
+    /**
+     * Test frontend build performance
+     */
+    async testFrontendBuild() {
+        console.log('\n🎨 Testing Frontend Build Performance...');
 
-    await this.testEndpoint('Get Farmers (Unauthorized)', '/api/v1/organizations/test/farmers', 'GET', null, {}, 10);
+        const frontendDir = 'farmtally-frontend';
+        
+        if (!fs.existsSync(frontendDir)) {
+            console.log('Frontend directory not found, skipping frontend tests');
+            return;
+        }
 
-    // Test static content or public endpoints if available
-    await this.testEndpoint('API Root', '/api/v1', 'GET', null, {}, 10);
+        // Test npm install
+        await this.testCommand(
+            'Frontend npm install',
+            'npm ci',
+            { cwd: frontendDir, timeout: 300000 } // 5 minutes
+        );
 
-    this.printSummary();
-  }
-
-  printSummary() {
-    console.log('\n📊 Performance Test Summary');
-    console.log('=' .repeat(50));
-    
-    if (this.results.length === 0) {
-      console.log('No successful tests to summarize.');
-      return;
+        // Test Next.js build
+        await this.testCommand(
+            'Frontend Next.js build',
+            'npm run build',
+            { cwd: frontendDir, timeout: 300000 } // 5 minutes
+        );
     }
 
-    this.results.forEach(result => {
-      console.log(`\n${result.name}:`);
-      console.log(`  Success Rate: ${result.successRate.toFixed(1)}%`);
-      console.log(`  Avg Response: ${result.avgResponseTime.toFixed(2)}ms`);
-      console.log(`  Range: ${result.minResponseTime}ms - ${result.maxResponseTime}ms`);
-    });
+    /**
+     * Test database operations
+     */
+    async testDatabaseOperations() {
+        console.log('\n🗄️ Testing Database Operations...');
 
-    const overallAvg = this.results.reduce((sum, r) => sum + r.avgResponseTime, 0) / this.results.length;
-    console.log(`\n🎯 Overall Average Response Time: ${overallAvg.toFixed(2)}ms`);
+        // Test Prisma generate
+        await this.testCommand(
+            'Prisma generate',
+            'npx prisma generate',
+            { timeout: 60000 } // 1 minute
+        );
 
-    // Performance recommendations
-    console.log('\n💡 Performance Recommendations:');
-    if (overallAvg > 1000) {
-      console.log('   ⚠️  High response times detected. Consider optimizing database queries.');
-    } else if (overallAvg > 500) {
-      console.log('   ⚠️  Moderate response times. Monitor under load.');
-    } else {
-      console.log('   ✅ Good response times.');
+        // Test database connection (if DATABASE_URL is available)
+        if (process.env.DATABASE_URL) {
+            await this.testCommand(
+                'Database connection test',
+                'npx prisma db pull --preview-feature',
+                { timeout: 30000 } // 30 seconds
+            );
+        } else {
+            console.log('DATABASE_URL not set, skipping database connection test');
+        }
     }
 
-    const lowSuccessRateTests = this.results.filter(r => r.successRate < 95);
-    if (lowSuccessRateTests.length > 0) {
-      console.log('   ⚠️  Some endpoints have low success rates. Check error handling.');
+    /**
+     * Test pipeline scripts
+     */
+    async testPipelineScripts() {
+        console.log('\n📋 Testing Pipeline Scripts...');
+
+        // Test health check script
+        await this.testCommand(
+            'Health check script',
+            'node scripts/health-check.js',
+            { timeout: 30000 } // 30 seconds
+        );
+
+        // Test pipeline monitor
+        await this.testCommand(
+            'Pipeline monitor resource check',
+            'node scripts/pipeline-monitor.js resource-check',
+            { timeout: 10000 } // 10 seconds
+        );
+
+        // Test artifact manager (dry run)
+        await this.testCommand(
+            'Artifact manager validation',
+            'node scripts/artifact-manager.sh --validate',
+            { timeout: 30000 } // 30 seconds
+        );
     }
-  }
+
+    /**
+     * Generate performance report
+     */
+    generateReport() {
+        const totalTests = this.results.tests.length;
+        const successfulTests = this.results.tests.filter(t => t.status === 'success').length;
+        const failedTests = totalTests - successfulTests;
+        
+        const totalDuration = this.results.tests.reduce((sum, test) => sum + test.duration, 0);
+        const averageDuration = totalDuration / totalTests;
+
+        const report = {
+            summary: {
+                totalTests: totalTests,
+                successfulTests: successfulTests,
+                failedTests: failedTests,
+                successRate: Math.round((successfulTests / totalTests) * 100),
+                totalDurationSeconds: Math.round(totalDuration / 1000 * 100) / 100,
+                averageDurationSeconds: Math.round(averageDuration / 1000 * 100) / 100
+            },
+            slowestTests: this.results.tests
+                .sort((a, b) => b.duration - a.duration)
+                .slice(0, 5),
+            failedTests: this.results.tests.filter(t => t.status === 'failed'),
+            recommendations: this.generateRecommendations()
+        };
+
+        console.log('\n📊 PERFORMANCE TEST REPORT');
+        console.log('=' .repeat(50));
+        console.log(`Total Tests: ${report.summary.totalTests}`);
+        console.log(`Success Rate: ${report.summary.successRate}%`);
+        console.log(`Total Duration: ${report.summary.totalDurationSeconds}s`);
+        console.log(`Average Duration: ${report.summary.averageDurationSeconds}s`);
+
+        if (report.slowestTests.length > 0) {
+            console.log('\n🐌 Slowest Operations:');
+            report.slowestTests.forEach((test, index) => {
+                console.log(`${index + 1}. ${test.name}: ${test.durationSeconds}s`);
+            });
+        }
+
+        if (report.failedTests.length > 0) {
+            console.log('\n❌ Failed Tests:');
+            report.failedTests.forEach(test => {
+                console.log(`- ${test.name}: ${test.error}`);
+            });
+        }
+
+        if (report.recommendations.length > 0) {
+            console.log('\n💡 Recommendations:');
+            report.recommendations.forEach(rec => {
+                console.log(`- ${rec}`);
+            });
+        }
+
+        // Save detailed report
+        const reportFile = 'performance-test-report.json';
+        fs.writeFileSync(reportFile, JSON.stringify({
+            ...this.results,
+            report: report
+        }, null, 2));
+
+        console.log(`\n📄 Detailed report saved to: ${reportFile}`);
+        return report;
+    }
+
+    /**
+     * Generate performance recommendations
+     */
+    generateRecommendations() {
+        const recommendations = [];
+        const slowThreshold = 60000; // 1 minute
+        const memoryThreshold = 500; // 500MB
+
+        // Check for slow operations
+        const slowTests = this.results.tests.filter(t => t.duration > slowThreshold);
+        if (slowTests.length > 0) {
+            recommendations.push(`${slowTests.length} operations took longer than 1 minute. Consider optimizing build processes.`);
+        }
+
+        // Check for high memory usage
+        const highMemoryTests = this.results.tests.filter(t => 
+            t.memory && t.memory.heapUsed > memoryThreshold
+        );
+        if (highMemoryTests.length > 0) {
+            recommendations.push(`${highMemoryTests.length} operations used more than 500MB memory. Consider memory optimization.`);
+        }
+
+        // Check for failed tests
+        const failedTests = this.results.tests.filter(t => t.status === 'failed');
+        if (failedTests.length > 0) {
+            recommendations.push(`${failedTests.length} tests failed. Review error messages and fix issues before deployment.`);
+        }
+
+        // Check build times
+        const buildTests = this.results.tests.filter(t => 
+            t.name.toLowerCase().includes('build') && t.status === 'success'
+        );
+        const totalBuildTime = buildTests.reduce((sum, test) => sum + test.duration, 0);
+        if (totalBuildTime > 300000) { // 5 minutes
+            recommendations.push('Total build time exceeds 5 minutes. Consider parallel builds or caching strategies.');
+        }
+
+        return recommendations;
+    }
+
+    /**
+     * Run all performance tests
+     */
+    async runAllTests() {
+        console.log('🚀 Starting Pipeline Performance Tests...');
+        console.log(`System: ${this.results.system.platform} ${this.results.system.arch}`);
+        console.log(`CPUs: ${this.results.system.cpus}, Memory: ${this.results.system.totalMemory}MB`);
+
+        try {
+            await this.testBackendBuild();
+            await this.testFrontendBuild();
+            await this.testDatabaseOperations();
+            await this.testPipelineScripts();
+        } catch (error) {
+            console.error('Error during performance testing:', error);
+        }
+
+        return this.generateReport();
+    }
 }
 
-// Run performance tests
-async function main() {
-  const baseUrl = process.argv[2] || 'http://localhost:3000';
-  const monitor = new PerformanceMonitor(baseUrl);
-  
-  try {
-    await monitor.runPerformanceTests();
-  } catch (error) {
-    console.error('❌ Performance test failed:', error);
-    process.exit(1);
-  }
-}
-
+// CLI interface
 if (require.main === module) {
-  main();
+    const perfTest = new PerformanceTest();
+    
+    const command = process.argv[2];
+    
+    switch (command) {
+        case 'backend':
+            perfTest.testBackendBuild().then(() => perfTest.generateReport());
+            break;
+        case 'frontend':
+            perfTest.testFrontendBuild().then(() => perfTest.generateReport());
+            break;
+        case 'database':
+            perfTest.testDatabaseOperations().then(() => perfTest.generateReport());
+            break;
+        case 'scripts':
+            perfTest.testPipelineScripts().then(() => perfTest.generateReport());
+            break;
+        case 'all':
+        default:
+            perfTest.runAllTests();
+            break;
+    }
 }
 
-module.exports = PerformanceMonitor;
+module.exports = PerformanceTest;

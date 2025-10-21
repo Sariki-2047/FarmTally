@@ -1,0 +1,46 @@
+{
+  "name": "farmtally-pipeline-tests",
+  "version": "1.0.0",
+  "description": "Comprehensive test suite for FarmTally Jenkins pipeline components",
+  "scripts": {
+    "test": "jest --config=jest.config.js",
+    "test:unit": "jest --config=jest.config.js --selectProjects unit",
+    "test:integration": "jest --config=jest.config.js --selectProjects integration",
+    "test:watch": "jest --config=jest.config.js --watch",
+    "test:coverage": "jest --config=jest.config.js --coverage",
+    "test:verbose": "VERBOSE_TESTS=true jest --config=jest.config.js --verbose",
+    "test:ci": "jest --config=jest.config.js --ci --coverage --watchAll=false",
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --config=jest.config.js --runInBand",
+    "lint:tests": "eslint tests/**/*.js",
+    "clean": "rimraf tests/coverage tests/temp tests/reports"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.22.0",
+    "babel-jest": "^29.5.0",
+    "eslint": "^8.42.0",
+    "jest": "^29.5.0",
+    "jest-watch-typeahead": "^2.2.2",
+    "rimraf": "^5.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.4.0"
+  },
+  "jest": {
+    "preset": "./jest.config.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "farmtally",
+    "jenkins",
+    "pipeline",
+    "testing",
+    "ci-cd",
+    "integration-tests",
+    "unit-tests"
+  ],
+  "author": "FarmTally Development Team",
+  "license": "MIT"
+}
