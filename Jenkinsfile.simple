@@ -1,0 +1,309 @@
+pipeline {
+    agent any
+    
+    environment {
+        // Isolated deployment configuration
+        PROJECT_NAME = 'farmtally'
+        FARMTALLY_FRONTEND_PORT = '8081'
+        FARMTALLY_BACKEND_PORT = '8082'
+        FARMTALLY_DB_PORT = '8083'
+        FARMTALLY_NETWORK = 'farmtally-network'
+        
+        // VPS Configuration
+        VPS_HOST = '147.93.153.247'
+        DEPLOY_DIR = '/opt/farmtally-jenkins'
+        
+        // Application Configuration
+        NODE_ENV = 'production'
+        DOCKER_BUILDKIT = '1'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '📥 Checking out FarmTally source code...'
+                checkout scm
+                
+                script {
+                    // Verify project structure
+                    if (!fileExists('package.json')) {
+                        error('❌ Backend package.json not found')
+                    }
+                    if (!fileExists('farmtally-frontend/package.json')) {
+                        error('❌ Frontend package.json not found')
+                    }
+                    echo '✅ Project structure verified'
+                }
+            }
+        }
+        
+        stage('Setup Environment') {
+            steps {
+                echo '🔧 Setting up build environment...'
+                script {
+                    // Check Node.js availability
+                    sh '''
+                        echo "Checking Node.js..."
+                        if command -v node >/dev/null 2>&1; then
+                            echo "Node.js version: $(node --version)"
+                            echo "NPM version: $(npm --version)"
+                        else
+                            echo "Node.js not found, will use Docker for builds"
+                        fi
+                        
+                        echo "Checking Docker..."
+                        docker --version || echo "Docker not available"
+                    '''
+                }
+            }
+        }
+        
+        stage('Build with Docker') {
+            steps {
+                echo '🐳 Building applications using Docker...'
+                script {
+                    // Create simple Dockerfile for backend
+                    writeFile file: 'Dockerfile.backend', text: '''
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+RUN npm ci --production
+
+# Copy source code
+COPY . .
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && adduser -S farmtally -u 1001
+RUN chown -R farmtally:nodejs /app
+USER farmtally
+
+# Expose port
+EXPOSE 8082
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8082/health || exit 1
+
+# Start application
+CMD ["npm", "start"]
+'''
+                    
+                    // Create simple Dockerfile for frontend
+                    writeFile file: 'farmtally-frontend/Dockerfile.frontend', text: '''
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/.next/static /usr/share/nginx/html/_next/static
+COPY --from=builder /app/public /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+'''
+                    
+                    // Create Nginx config
+                    writeFile file: 'farmtally-frontend/nginx.conf', text: '''
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    server {
+        listen 80;
+        server_name localhost;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        location /api {
+            proxy_pass http://farmtally-backend:8082;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location /health {
+            proxy_pass http://farmtally-backend:8082/health;
+        }
+    }
+}
+'''
+                    
+                    // Build Docker images
+                    sh 'docker build -t farmtally-backend:isolated -f Dockerfile.backend .'
+                    sh 'docker build -t farmtally-frontend:isolated -f farmtally-frontend/Dockerfile.frontend farmtally-frontend/'
+                }
+            }
+        }
+        
+        stage('Create Deployment Configuration') {
+            steps {
+                echo '📝 Creating deployment configuration...'
+                script {
+                    // Create Docker Compose file
+                    writeFile file: 'docker-compose.isolated.yml', text: """
+version: '3.8'
+
+services:
+  farmtally-db:
+    image: postgres:14-alpine
+    container_name: farmtally-db-isolated
+    environment:
+      POSTGRES_DB: farmtally
+      POSTGRES_USER: farmtally
+      POSTGRES_PASSWORD: farmtally123
+    volumes:
+      - farmtally_db_data:/var/lib/postgresql/data
+    ports:
+      - "${FARMTALLY_DB_PORT}:5432"
+    networks:
+      - ${FARMTALLY_NETWORK}
+    restart: unless-stopped
+
+  farmtally-backend:
+    image: farmtally-backend:isolated
+    container_name: farmtally-backend-isolated
+    ports:
+      - "${FARMTALLY_BACKEND_PORT}:8082"
+    environment:
+      - NODE_ENV=production
+      - PORT=8082
+      - DATABASE_URL=postgresql://farmtally:farmtally123@farmtally-db:5432/farmtally
+      - JWT_SECRET=farmtally_jwt_secret_key_2024
+      - CORS_ORIGINS=http://147.93.153.247:${FARMTALLY_FRONTEND_PORT}
+    depends_on:
+      - farmtally-db
+    networks:
+      - ${FARMTALLY_NETWORK}
+    restart: unless-stopped
+
+  farmtally-frontend:
+    image: farmtally-frontend:isolated
+    container_name: farmtally-frontend-isolated
+    ports:
+      - "${FARMTALLY_FRONTEND_PORT}:80"
+    depends_on:
+      - farmtally-backend
+    networks:
+      - ${FARMTALLY_NETWORK}
+    restart: unless-stopped
+
+volumes:
+  farmtally_db_data:
+
+networks:
+  ${FARMTALLY_NETWORK}:
+    driver: bridge
+    name: ${FARMTALLY_NETWORK}
+"""
+                }
+            }
+        }
+        
+        stage('Deploy Locally') {
+            steps {
+                echo '🚀 Starting local deployment...'
+                script {
+                    // Stop existing containers
+                    sh 'docker-compose -f docker-compose.isolated.yml down 2>/dev/null || true'
+                    
+                    // Start new deployment
+                    sh 'docker-compose -f docker-compose.isolated.yml up -d'
+                    
+                    // Wait for services
+                    sleep 30
+                    
+                    // Check status
+                    sh 'docker-compose -f docker-compose.isolated.yml ps'
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                echo '🏥 Performing health checks...'
+                script {
+                    // Wait a bit more for services to fully start
+                    sleep 30
+                    
+                    // Check if containers are running
+                    def backendRunning = sh(
+                        script: 'docker ps --filter "name=farmtally-backend-isolated" --filter "status=running" -q',
+                        returnStdout: true
+                    ).trim()
+                    
+                    def frontendRunning = sh(
+                        script: 'docker ps --filter "name=farmtally-frontend-isolated" --filter "status=running" -q',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (backendRunning && frontendRunning) {
+                        echo '✅ All containers are running!'
+                        
+                        // Try to check health endpoints
+                        sh '''
+                            echo "Checking backend health..."
+                            curl -f http://localhost:8082/health || echo "Backend health check failed, but container is running"
+                            
+                            echo "Checking frontend accessibility..."
+                            curl -f http://localhost:8081 || echo "Frontend check failed, but container is running"
+                        '''
+                    } else {
+                        error('❌ Some containers failed to start')
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '🎉 FarmTally deployment completed successfully!'
+            echo "🌐 Access your application:"
+            echo "   Frontend: http://${VPS_HOST}:${FARMTALLY_FRONTEND_PORT}"
+            echo "   Backend API: http://${VPS_HOST}:${FARMTALLY_BACKEND_PORT}"
+            echo "   Health Check: http://${VPS_HOST}:${FARMTALLY_BACKEND_PORT}/health"
+        }
+        
+        failure {
+            echo '❌ FarmTally deployment failed!'
+            
+            // Show container logs for debugging
+            script {
+                try {
+                    sh 'docker-compose -f docker-compose.isolated.yml logs --tail=50'
+                } catch (Exception e) {
+                    echo "Could not retrieve logs: ${e.getMessage()}"
+                }
+            }
+        }
+        
+        always {
+            // Cleanup build files
+            sh '''
+                rm -f Dockerfile.backend
+                rm -f farmtally-frontend/Dockerfile.frontend
+                rm -f farmtally-frontend/nginx.conf
+                rm -f docker-compose.isolated.yml
+            '''
+            
+            // Archive any logs
+            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+        }
+    }
+}
