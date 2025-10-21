@@ -77,8 +77,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build only the simple server (skip problematic files)
-RUN npx tsc src/server.simple.ts --outDir dist --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --skipLibCheck
+# Build only the minimal server (skip problematic files)
+RUN npx tsc src/server.minimal.ts --outDir dist --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --skipLibCheck
 
 # Remove dev dependencies after build
 RUN npm ci --production && npm cache clean --force
