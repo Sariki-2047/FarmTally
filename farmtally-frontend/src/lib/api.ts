@@ -1,365 +1,165 @@
-/**
- * API Client for FarmTally Backend
- * Handles all HTTP requests to the backend server
- */
+// FarmTally API Client - PostgreSQL Backend
+// Clean implementation without Supabase dependencies
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://qvxcbdglyvzohzdefnet.supabase.co/functions/v1/farmtally-api';
+export class FarmTallyAPI {
+  private baseURL: string
 
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  role: 'FARM_ADMIN' | 'FIELD_MANAGER' | 'FARMER';
-  organizationName?: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  status?: string;
-  organization: {
-    id: string;
-    name: string;
-  };
-}
-
-export interface AuthResponse {
-  tokens: {
-    accessToken: string;
-    refreshToken: string;
-  };
-  user: {
-    id: string;
-    email: string;
-    role: string;
-    status: string;
-    profile?: {
-      firstName?: string;
-      lastName?: string;
-      first_name?: string;
-      last_name?: string;
-    };
-    organization?: any;
-    organization_id?: string;
-  };
-}
-
-class ApiClient {
-  private baseURL: string;
-  private token: string | null = null;
-
-  constructor(baseURL: string) {
-    this.baseURL = baseURL;
-    // Get token from localStorage if available
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('farmtally_token');
-    }
+  constructor() {
+    // Use environment variable or default to VPS backend
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://147.93.153.247:8082'
   }
 
-  setToken(token: string) {
-    this.token = token;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('farmtally_token', token);
-    }
-  }
-
-  clearToken() {
-    this.token = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('farmtally_token');
-    }
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}/api${endpoint}`;
+  private async request(endpoint: string, options: RequestInit = {}) {
+    const url = `${this.baseURL}${endpoint}`
     
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'apikey': supabaseAnonKey,
-      'Authorization': `Bearer ${supabaseAnonKey}`,
-      ...(options.headers as Record<string, string>),
-    };
-
-    // If we have a user token, use it instead of the anon key
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
+    const config: RequestInit = {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
     }
 
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      const data = await response.json();
-
+      const response = await fetch(url, config)
+      const data = await response.json()
+      
       if (!response.ok) {
-        throw new Error(data.message || data.error || 'Request failed');
+        throw new Error(data.error || `HTTP error! status: ${response.status}`)
       }
-
-      return data;
+      
+      return data
     } catch (error) {
-      console.error('API Request failed:', error);
-      throw error;
+      console.error('API Request failed:', error)
+      throw error
     }
   }
 
-  // Authentication endpoints
-  async login(credentials: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-    console.log('🌐 API Client: Making login request to:', `${this.baseURL}/auth/login`);
-    console.log('📧 API Client: Email:', credentials.email);
-    
-    const result = await this.request<AuthResponse>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
-    
-    console.log('📡 API Client: Login response:', result);
-    return result;
+  // Health check endpoints
+  async health() {
+    return this.request('/health')
   }
 
-  async register(userData: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
-    return this.request<AuthResponse>('/auth/register', {
+  async healthDb() {
+    return this.request('/api/health/db')
+  }
+
+  // User management
+  async getUsers() {
+    return this.request('/api/users')
+  }
+
+  async createUser(userData: {
+    email: string
+    role: string
+    name?: string
+    phone?: string
+  }) {
+    return this.request('/api/users', {
       method: 'POST',
       body: JSON.stringify(userData),
-    });
+    })
   }
 
-  async getCurrentUser(): Promise<ApiResponse<User>> {
-    return this.request<User>('/auth/profile');
+  async getUserById(userId: string) {
+    return this.request(`/api/users/${userId}`)
   }
 
-  // Farmer endpoints
-  async getFarmers(page = 1, limit = 20): Promise<ApiResponse<any>> {
-    return this.request(`/farmers?page=${page}&limit=${limit}`);
-  }
-
-  async createFarmer(farmerData: any): Promise<ApiResponse<any>> {
-    return this.request('/farmers', {
-      method: 'POST',
-      body: JSON.stringify(farmerData),
-    });
-  }
-
-  async updateFarmer(id: string, farmerData: any): Promise<ApiResponse<any>> {
-    return this.request(`/farmers/${id}`, {
+  async updateUser(userId: string, userData: any) {
+    return this.request(`/api/users/${userId}`, {
       method: 'PUT',
-      body: JSON.stringify(farmerData),
-    });
+      body: JSON.stringify(userData),
+    })
   }
 
-  async deleteFarmer(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/farmers/${id}`, {
+  async deleteUser(userId: string) {
+    return this.request(`/api/users/${userId}`, {
       method: 'DELETE',
-    });
+    })
   }
 
-  // Lorry endpoints
-  async getLorries(page = 1, limit = 20): Promise<ApiResponse<any>> {
-    return this.request(`/lorries?page=${page}&limit=${limit}`);
+  // Organization management
+  async getOrganizations() {
+    return this.request('/api/organizations')
   }
 
-  async createLorry(lorryData: any): Promise<ApiResponse<any>> {
-    return this.request('/lorries', {
+  async createOrganization(orgData: {
+    name: string
+    code: string
+    address?: string
+    phone?: string
+    email?: string
+  }) {
+    return this.request('/api/organizations', {
       method: 'POST',
-      body: JSON.stringify(lorryData),
-    });
+      body: JSON.stringify(orgData),
+    })
   }
 
-  async updateLorry(id: string, lorryData: any): Promise<ApiResponse<any>> {
-    return this.request(`/lorries/${id}`, {
+  async getOrganizationById(orgId: string) {
+    return this.request(`/api/organizations/${orgId}`)
+  }
+
+  async updateOrganization(orgId: string, orgData: any) {
+    return this.request(`/api/organizations/${orgId}`, {
       method: 'PUT',
-      body: JSON.stringify(lorryData),
-    });
+      body: JSON.stringify(orgData),
+    })
   }
 
-  async deleteLorry(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/lorries/${id}`, {
+  async deleteOrganization(orgId: string) {
+    return this.request(`/api/organizations/${orgId}`, {
       method: 'DELETE',
-    });
+    })
   }
 
-  // Delivery endpoints
-  async getDeliveries(): Promise<ApiResponse<any>> {
-    return this.request('/deliveries');
-  }
-
-  async addFarmerToLorry(lorryId: string, farmerId: string, deliveryData: any): Promise<ApiResponse<any>> {
-    return this.request(`/deliveries/lorries/${lorryId}/farmers/${farmerId}`, {
+  // Authentication (for future implementation)
+  async login(email: string, password: string) {
+    return this.request('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify(deliveryData),
-    });
+      body: JSON.stringify({ email, password }),
+    })
   }
 
-  async getLorryDeliveries(lorryId: string): Promise<ApiResponse<any>> {
-    return this.request(`/deliveries/lorries/${lorryId}`);
-  }
-
-  async getLorryDeliverySummary(lorryId: string): Promise<ApiResponse<any>> {
-    return this.request(`/deliveries/lorries/${lorryId}/summary`);
-  }
-
-  async updateDelivery(id: string, deliveryData: any): Promise<ApiResponse<any>> {
-    return this.request(`/deliveries/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(deliveryData),
-    });
-  }
-
-  async deleteDelivery(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/deliveries/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async clearPendingDeliveries(lorryId: string): Promise<ApiResponse<any>> {
-    return this.request(`/deliveries/lorries/${lorryId}/clear-pending`, {
+  async register(userData: any) {
+    return this.request('/api/auth/register', {
       method: 'POST',
-    });
+      body: JSON.stringify(userData),
+    })
   }
 
-  async submitLorryForProcessing(lorryId: string): Promise<ApiResponse<any>> {
-    return this.request(`/deliveries/lorries/${lorryId}/submit`, {
+  async logout() {
+    return this.request('/api/auth/logout', {
       method: 'POST',
-    });
+    })
   }
 
-  async sendLorryToDealer(lorryId: string): Promise<ApiResponse<any>> {
-    return this.request(`/deliveries/lorries/${lorryId}/send-to-dealer`, {
-      method: 'POST',
-    });
+  // System status
+  async getSystemStatus() {
+    return this.request('/api/system/status')
   }
 
-  // Admin endpoints
-  async getSystemStats(): Promise<ApiResponse<any>> {
-    return this.request('/system-admin/dashboard');
-  }
-
-  async getPendingFarmAdmins(): Promise<ApiResponse<any>> {
-    return this.request('/system-admin/users/pending');
-  }
-
-  async reviewFarmAdmin(userId: string, approved: boolean, rejectionReason?: string): Promise<ApiResponse<any>> {
-    if (approved) {
-      return this.request(`/system-admin/users/${userId}/approve`, {
-        method: 'POST',
-        body: JSON.stringify({
-          approvalNotes: 'Approved by system administrator'
-        }),
-      });
-    } else {
-      return this.request(`/system-admin/users/${userId}/reject`, {
-        method: 'POST',
-        body: JSON.stringify({
-          rejectionReason: rejectionReason || 'Registration rejected by system administrator'
-        }),
-      });
+  // Test connectivity
+  async testConnection() {
+    try {
+      const health = await this.health()
+      const dbHealth = await this.healthDb()
+      return {
+        backend: health,
+        database: dbHealth,
+        status: 'connected'
+      }
+    } catch (error) {
+      return {
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     }
-  }
-
-  async getAllFarmAdmins(): Promise<ApiResponse<any>> {
-    return this.request('/admin/all-farm-admins');
-  }
-
-  // Advance Payment endpoints
-  async createAdvancePayment(paymentData: any): Promise<ApiResponse<any>> {
-    return this.request('/advance-payments', {
-      method: 'POST',
-      body: JSON.stringify(paymentData),
-    });
-  }
-
-  async getFarmerAdvancePayments(farmerId: string): Promise<ApiResponse<any>> {
-    return this.request(`/advance-payments/farmer/${farmerId}`);
-  }
-
-  async getAdvancePaymentSummary(): Promise<ApiResponse<any>> {
-    return this.request('/advance-payments/summary');
-  }
-
-  // Invitation endpoints
-  async sendFieldManagerInvitation(invitationData: {
-    email: string;
-    firstName: string;
-    lastName: string;
-    message?: string;
-  }): Promise<ApiResponse<any>> {
-    return this.request('/invitations/field-manager', {
-      method: 'POST',
-      body: JSON.stringify(invitationData),
-    });
-  }
-
-  async getMyInvitations(): Promise<ApiResponse<any>> {
-    return this.request('/invitations/my-invitations');
-  }
-
-  async getFieldManagers(): Promise<ApiResponse<any>> {
-    return this.request('/invitations/field-managers');
-  }
-
-  async validateInvitation(token: string): Promise<ApiResponse<any>> {
-    return this.request(`/invitations/validate/${token}`);
-  }
-
-  // Lorry Request endpoints
-  async createLorryRequest(requestData: {
-    requestedDate: string;
-    estimatedGunnyBags: number;
-    location: string;
-    notes?: string;
-  }): Promise<ApiResponse<any>> {
-    return this.request('/lorry-requests', {
-      method: 'POST',
-      body: JSON.stringify(requestData),
-    });
-  }
-
-  async getLorryRequests(): Promise<ApiResponse<any>> {
-    return this.request('/lorry-requests');
-  }
-
-  async updateLorryRequestStatus(requestId: string, status: string, lorryId?: string): Promise<ApiResponse<any>> {
-    return this.request(`/lorry-requests/${requestId}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status, lorryId }),
-    });
-  }
-
-  // Lorry Management endpoints
-
-  async getOrganizationLorries(): Promise<ApiResponse<any>> {
-    return this.request('/lorries/organization');
-  }
-
-  async updateLorryStatus(lorryId: string, status: string): Promise<ApiResponse<any>> {
-    return this.request(`/lorries/${lorryId}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
   }
 }
 
-export const apiClient = new ApiClient(API_BASE_URL);
-export default apiClient;
+// Export singleton instance
+export const farmTallyAPI = new FarmTallyAPI()
+
+// Export default for convenience
+export default farmTallyAPI
