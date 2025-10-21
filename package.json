@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "dev:simple": "tsx watch src/server.simple.ts",
     "build": "tsc && npm run copy-assets",
-    "start": "node dist/server.minimal.js",
+    "start": "npx tsx src/server.minimal.ts",
     "start:full": "node dist/server.js",
     "copy-assets": "cp -r src/public dist/ 2>/dev/null || true",
     "test": "jest",
