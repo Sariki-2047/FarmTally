@@ -241,30 +241,42 @@ networks:
                     // Wait a bit more for services to fully start
                     sleep 30
                     
-                    // Check if containers are running
-                    def backendRunning = sh(
-                        script: 'docker ps --filter "name=farmtally-backend-isolated" --filter "status=running" -q',
+                    // Check container status
+                    def containerStatus = sh(
+                        script: 'docker-compose -f docker-compose.isolated.yml ps --format json',
                         returnStdout: true
                     ).trim()
                     
-                    def frontendRunning = sh(
-                        script: 'docker ps --filter "name=farmtally-frontend-isolated" --filter "status=running" -q',
-                        returnStdout: true
-                    ).trim()
+                    echo "Container status: ${containerStatus}"
                     
-                    if (backendRunning && frontendRunning) {
+                    // Simple container count check
+                    def runningContainers = sh(
+                        script: 'docker-compose -f docker-compose.isolated.yml ps -q | wc -l',
+                        returnStdout: true
+                    ).trim().toInteger()
+                    
+                    if (runningContainers >= 3) {
                         echo '✅ All containers are running!'
                         
-                        // Try to check health endpoints
+                        // Try to check health endpoints (non-blocking)
                         sh '''
-                            echo "Checking backend health..."
-                            curl -f http://localhost:8082/health || echo "Backend health check failed, but container is running"
+                            echo "Checking services..."
                             
-                            echo "Checking frontend accessibility..."
-                            curl -f http://localhost:8081 || echo "Frontend check failed, but container is running"
+                            echo "Backend container logs (last 10 lines):"
+                            docker logs farmtally-backend-isolated --tail=10 || echo "Could not get backend logs"
+                            
+                            echo "Frontend container logs (last 10 lines):"
+                            docker logs farmtally-frontend-isolated --tail=10 || echo "Could not get frontend logs"
+                            
+                            echo "Database container logs (last 10 lines):"
+                            docker logs farmtally-db-isolated --tail=10 || echo "Could not get database logs"
+                            
+                            echo "Attempting health checks..."
+                            curl -f http://localhost:8082/health || echo "Backend health endpoint not ready yet"
+                            curl -f http://localhost:8081 || echo "Frontend not ready yet"
                         '''
                     } else {
-                        error('❌ Some containers failed to start')
+                        error("❌ Expected 3 containers, but found ${runningContainers}")
                     }
                 }
             }
@@ -286,7 +298,22 @@ networks:
             // Show container logs for debugging
             script {
                 try {
-                    sh 'docker-compose -f docker-compose.isolated.yml logs --tail=50'
+                    // Check if compose file still exists
+                    if (fileExists('docker-compose.isolated.yml')) {
+                        sh 'docker-compose -f docker-compose.isolated.yml logs --tail=50'
+                    } else {
+                        echo "Docker compose file was already cleaned up"
+                        // Try to get logs directly from containers
+                        sh '''
+                            echo "Checking for any FarmTally containers..."
+                            docker ps -a --filter "name=farmtally" || echo "No FarmTally containers found"
+                            
+                            echo "Getting logs from any running FarmTally containers..."
+                            docker logs farmtally-backend-isolated --tail=20 2>/dev/null || echo "No backend container logs"
+                            docker logs farmtally-frontend-isolated --tail=20 2>/dev/null || echo "No frontend container logs"
+                            docker logs farmtally-db-isolated --tail=20 2>/dev/null || echo "No database container logs"
+                        '''
+                    }
                 } catch (Exception e) {
                     echo "Could not retrieve logs: ${e.getMessage()}"
                 }
