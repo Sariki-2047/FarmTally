@@ -114,12 +114,12 @@ FROM nginx:alpine
 # Copy build output (use RUN with shell commands for conditional copying)
 RUN mkdir -p /usr/share/nginx/html
 
-# Copy Next.js build files
-COPY --from=builder /app/.next /usr/share/nginx/html/.next 2>/dev/null || true
-COPY --from=builder /app/public /usr/share/nginx/html/ 2>/dev/null || true
+# Copy Next.js build files using RUN commands for conditional copying
+RUN mkdir -p /usr/share/nginx/html/.next /usr/share/nginx/html/public
 
-# Try to copy static export if it exists
-RUN if [ -d "/tmp/out" ]; then cp -r /tmp/out/* /usr/share/nginx/html/; fi || true
+# Copy build files if they exist
+COPY --from=builder /app/.next /usr/share/nginx/html/.next
+COPY --from=builder /app/public /usr/share/nginx/html/
 
 # Create a simple FarmTally index.html
 RUN echo '<!DOCTYPE html>\\
