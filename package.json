@@ -2,12 +2,13 @@
   "name": "farmtally-backend",
   "version": "1.0.0",
   "description": "FarmTally - Corn Procurement Management System Backend",
-  "main": "dist/server.js",
+  "main": "dist/server.simple.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "dev:simple": "tsx watch src/server.simple.ts",
     "build": "tsc && npm run copy-assets",
-    "start": "node dist/server.js",
+    "start": "node dist/server.simple.js",
+    "start:full": "node dist/server.js",
     "copy-assets": "cp -r src/public dist/ 2>/dev/null || true",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -43,7 +44,10 @@
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.9",
     "redis": "^5.8.3",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "prisma": "^6.17.1",
+    "tsx": "^4.6.0",
+    "typescript": "^5.2.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
