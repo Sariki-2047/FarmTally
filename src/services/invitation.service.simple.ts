@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import * as crypto from 'crypto';
+import { EmailService } from './emailService';
 
 export interface CreateInvitationData {
   email: string;
@@ -26,6 +27,11 @@ export interface InvitationResponse {
 }
 
 export class InvitationService {
+  private emailService: EmailService;
+
+  constructor() {
+    this.emailService = new EmailService();
+  }
   
   /**
    * Create invitation for Farm Admin or Field Manager
@@ -89,6 +95,26 @@ export class InvitationService {
         expiresAt: expiresAt
       }
     });
+
+    // Send invitation email
+    if (data.role === 'FIELD_MANAGER') {
+      const invitationLink = `${process.env.FRONTEND_URL || 'https://app.farmtally.in'}/register?token=${invitationToken}`;
+      const inviterName = `${inviter.firstName || ''} ${inviter.lastName || ''}`.trim() || inviter.email;
+      
+      try {
+        await this.emailService.sendFieldManagerInvitation(
+          data.email,
+          inviterName,
+          data.organizationName,
+          invitationLink,
+          data.message
+        );
+        console.log(`✅ Invitation email sent to ${data.email}`);
+      } catch (error) {
+        console.error(`❌ Failed to send invitation email to ${data.email}:`, error);
+        // Don't fail the invitation creation if email fails
+      }
+    }
 
     return invitation as InvitationResponse;
   }

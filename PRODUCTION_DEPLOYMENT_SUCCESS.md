@@ -3,7 +3,7 @@
 ## 🌐 Live URLs
 
 ### ✅ Frontend (Production)
-**URL:** `https://farmtally-frontend-7v9ypaf6d-prasads-projects-740ea481.vercel.app`
+**URL:** `https://app.farmtally.in`
 - **Status:** ✅ Deployed and Public
 - **Environment Variables:** ✅ Configured
 - **Build:** ✅ Successful
@@ -56,16 +56,16 @@ Your FarmTally application is now fully deployed and ready for:
 ## 📱 Share with Users
 
 You can now share this URL with your users:
-**https://farmtally-frontend-7v9ypaf6d-prasads-projects-740ea481.vercel.app**
+**https://app.farmtally.in**
 
 The application is production-ready and fully functional!
 
 ## 🔗 Quick Links
 
-- **Main App:** https://farmtally-frontend-7v9ypaf6d-prasads-projects-740ea481.vercel.app
-- **API Test:** https://farmtally-frontend-7v9ypaf6d-prasads-projects-740ea481.vercel.app/test-api
-- **Login:** https://farmtally-frontend-7v9ypaf6d-prasads-projects-740ea481.vercel.app/login
-- **Register:** https://farmtally-frontend-7v9ypaf6d-prasads-projects-740ea481.vercel.app/register
+- **Main App:** https://app.farmtally.in
+- **API Test:** https://app.farmtally.in/test-api
+- **Login:** https://app.farmtally.in/login
+- **Register:** https://app.farmtally.in/register
 
 ---
 *Deployment completed successfully on October 20, 2025*

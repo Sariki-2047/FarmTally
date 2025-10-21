@@ -29,6 +29,8 @@ export interface UserResponse {
     createdAt: Date;
 }
 export declare class AuthService {
+    private emailService;
+    constructor();
     register(data: RegisterData): Promise<{
         user: UserResponse;
         tokens: TokenPair;
@@ -42,5 +44,9 @@ export declare class AuthService {
     changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void>;
     getUserProfile(userId: string): Promise<UserResponse>;
     updateProfile(userId: string, profileData: any): Promise<UserResponse>;
+    private sendRegistrationPendingEmail;
+    private notifySystemAdminsOfNewRegistration;
+    private generateRegistrationPendingTemplate;
+    private generateNewRegistrationNotificationTemplate;
 }
 //# sourceMappingURL=auth.service.d.ts.map

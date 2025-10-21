@@ -1,9 +1,17 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DeliveryService = void 0;
 const database_1 = require("../config/database");
 const error_middleware_1 = require("../middleware/error.middleware");
+const emailService_1 = __importDefault(require("./emailService"));
 class DeliveryService {
+    emailService;
+    constructor() {
+        this.emailService = new emailService_1.default();
+    }
     async addFarmerToLorry(lorryId, farmerId, userId, data) {
         const user = await database_1.prisma.user.findUnique({
             where: { id: userId },
@@ -343,6 +351,7 @@ class DeliveryService {
                         id: true,
                         name: true,
                         phone: true,
+                        email: true,
                     },
                 },
                 recorder: {
@@ -354,6 +363,20 @@ class DeliveryService {
                 },
             },
         });
+        if (process.env.EMAIL_NOTIFICATIONS_ENABLED === 'true' && farmer.email) {
+            try {
+                await this.emailService.sendAdvancePaymentNotification(farmer.email, {
+                    farmerName: advancePayment.farmer.name,
+                    amount: advancePayment.amount,
+                    paymentDate: advancePayment.paymentDate.toLocaleDateString(),
+                    referenceNumber: advancePayment.referenceNumber,
+                    reason: advancePayment.reason,
+                });
+            }
+            catch (error) {
+                console.error('Failed to send advance payment notification email:', error);
+            }
+        }
         return advancePayment;
     }
     async getFarmerAdvanceBalance(farmerId, organizationId) {
@@ -592,6 +615,25 @@ class DeliveryService {
                 },
             });
             processedDeliveries.push(updatedDelivery);
+            if (process.env.EMAIL_NOTIFICATIONS_ENABLED === 'true') {
+                try {
+                    const farmerWithEmail = await database_1.prisma.farmer.findUnique({
+                        where: { id: delivery.farmerId },
+                        select: { email: true },
+                    });
+                    if (farmerWithEmail?.email) {
+                        await this.emailService.sendPaymentNotification(farmerWithEmail.email, {
+                            farmerName: updatedDelivery.farmer.name,
+                            amount: finalAmount,
+                            deliveryDate: updatedDelivery.deliveryDate?.toLocaleDateString() || new Date().toLocaleDateString(),
+                            referenceNumber: updatedDelivery.id,
+                        });
+                    }
+                }
+                catch (error) {
+                    console.error('Failed to send payment notification email:', error);
+                }
+            }
             await database_1.prisma.farmerOrganization.update({
                 where: {
                     farmerId_organizationId: {

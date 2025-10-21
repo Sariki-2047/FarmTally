@@ -187,7 +187,7 @@ const AUTH_REDIRECTS = {
 # Build frontend
 npm run build
 
-# Deploy to hosting service (Vercel, Netlify, etc.)
+# Deploy to VPS or hosting service
 # Or serve with nginx/apache
 ```
 

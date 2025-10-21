@@ -169,12 +169,20 @@ class LorryService {
         if (!lorry) {
             throw new Error('Lorry not found');
         }
+        const updateData = {
+            status: status,
+            updatedAt: new Date()
+        };
+        if (status === 'SENT_TO_DEALER') {
+            updateData.sentToDealerAt = new Date();
+        }
+        if (status === 'AVAILABLE' && lorry.status === 'SENT_TO_DEALER') {
+            updateData.assignedManagerId = null;
+            updateData.assignedAt = null;
+        }
         const updatedLorry = await prisma_1.prisma.lorry.update({
             where: { id },
-            data: {
-                status: status,
-                updatedAt: new Date()
-            },
+            data: updateData,
             include: {
                 assignedTo: {
                     select: {

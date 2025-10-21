@@ -90,7 +90,7 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
+    const url = `${this.baseURL}/api${endpoint}`;
     
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
     
@@ -253,7 +253,7 @@ class ApiClient {
 
   // Admin endpoints
   async getSystemStats(): Promise<ApiResponse<any>> {
-    return this.request('/admin/stats');
+    return this.request('/system-admin/dashboard');
   }
 
   async getPendingFarmAdmins(): Promise<ApiResponse<any>> {

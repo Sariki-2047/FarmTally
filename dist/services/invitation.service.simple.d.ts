@@ -21,6 +21,8 @@ export interface InvitationResponse {
     updatedAt: Date;
 }
 export declare class InvitationService {
+    private emailService;
+    constructor();
     createInvitation(data: CreateInvitationData, inviterUserId: string): Promise<InvitationResponse>;
     validateInvitation(token: string): Promise<InvitationResponse>;
     registerWithInvitation(token: string, userData: {

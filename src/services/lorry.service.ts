@@ -66,8 +66,8 @@ export class LorryService {
         throw new BadRequestError('Can only assign lorries to field managers');
       }
 
-      if (manager.status !== 'ACTIVE') {
-        throw new BadRequestError('Cannot assign lorry to inactive manager');
+      if (manager.status !== 'APPROVED') {
+        throw new BadRequestError('Cannot assign lorry to unapproved manager');
       }
     }
 
@@ -322,8 +322,8 @@ export class LorryService {
           throw new BadRequestError('Can only assign lorries to field managers');
         }
 
-        if (manager.status !== 'ACTIVE') {
-          throw new BadRequestError('Cannot assign lorry to inactive manager');
+        if (manager.status !== 'APPROVED') {
+          throw new BadRequestError('Cannot assign lorry to unapproved manager');
         }
 
         // Update status and assignment time

@@ -1,9 +1,17 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LorryRequestService = void 0;
 const database_1 = require("../config/database");
 const error_middleware_1 = require("../middleware/error.middleware");
+const emailService_1 = __importDefault(require("./emailService"));
 class LorryRequestService {
+    emailService;
+    constructor() {
+        this.emailService = new emailService_1.default();
+    }
     async createLorryRequest(organizationId, managerId, data) {
         const manager = await database_1.prisma.user.findUnique({
             where: { id: managerId },
@@ -12,8 +20,8 @@ class LorryRequestService {
         if (!manager || manager.organizationId !== organizationId || manager.role !== 'FIELD_MANAGER') {
             throw new error_middleware_1.ForbiddenError('Only field managers can create lorry requests');
         }
-        if (manager.status !== 'ACTIVE') {
-            throw new error_middleware_1.BadRequestError('Inactive users cannot create requests');
+        if (manager.status !== 'APPROVED') {
+            throw new error_middleware_1.BadRequestError('Unapproved users cannot create requests');
         }
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -68,6 +76,30 @@ class LorryRequestService {
                 },
             },
         });
+        if (process.env.EMAIL_NOTIFICATIONS_ENABLED === 'true') {
+            try {
+                const farmAdmin = await database_1.prisma.user.findFirst({
+                    where: {
+                        organizationId,
+                        role: 'FARM_ADMIN',
+                        status: 'ACTIVE',
+                    },
+                    select: { email: true },
+                });
+                if (farmAdmin?.email) {
+                    await this.emailService.sendLorryRequestNotification(farmAdmin.email, lorryRequest.manager.profile?.firstName || 'Field Manager', {
+                        id: lorryRequest.id,
+                        requiredDate: lorryRequest.requiredDate.toLocaleDateString(),
+                        purpose: lorryRequest.purpose,
+                        priority: lorryRequest.priority,
+                        location: lorryRequest.location,
+                    });
+                }
+            }
+            catch (error) {
+                console.error('Failed to send lorry request notification email:', error);
+            }
+        }
         return lorryRequest;
     }
     async getLorryRequests(organizationId, userId, filters = {}, page = 1, limit = 20) {
@@ -385,6 +417,19 @@ class LorryRequestService {
             });
             return updatedRequest;
         });
+        if (process.env.EMAIL_NOTIFICATIONS_ENABLED === 'true') {
+            try {
+                await this.emailService.sendLorryApprovalNotification(result.manager.email, {
+                    requestId: result.id,
+                    lorryName: result.assignedLorry?.name || 'Unknown',
+                    licensePlate: result.assignedLorry?.licensePlate || 'Unknown',
+                    approvedBy: result.approver?.profile?.firstName || 'Farm Admin',
+                });
+            }
+            catch (error) {
+                console.error('Failed to send lorry approval notification email:', error);
+            }
+        }
         return result;
     }
     async rejectLorryRequest(requestId, approverId, data) {

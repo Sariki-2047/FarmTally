@@ -153,8 +153,7 @@ class EmailService {
             </div>
             
             <div style="text-align: center; margin: 20px 0;">
-              <a href="#" class="button">Approve Request</a>
-              <a href="#" class="button" style="background-color: #f44336;">Reject Request</a>
+              <a href="${process.env.FRONTEND_URL || 'https://app.farmtally.in'}/admin/lorry-requests" class="button">View Request</a>
             </div>
             
             <p>Please review and take action on this request at your earliest convenience.</p>
@@ -320,6 +319,79 @@ class EmailService {
             <p>All delivery details have been recorded and are available in the system for review.</p>
             
             <p>Best regards,<br>FarmTally Team</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    }
+    async sendFieldManagerInvitation(inviteeEmail, inviterName, organizationName, invitationLink, message) {
+        const emailData = {
+            to: inviteeEmail,
+            subject: `Invitation to Join ${organizationName} - FarmTally`,
+            html: this.generateInvitationTemplate(inviterName, organizationName, invitationLink, message),
+            text: `You've been invited to join ${organizationName} as a Field Manager on FarmTally. Click the link to accept: ${invitationLink}`
+        };
+        return await this.sendEmail(emailData);
+    }
+    generateInvitationTemplate(inviterName, organizationName, invitationLink, message) {
+        return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>FarmTally Invitation</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+          .header { text-align: center; background-color: #2E7D32; color: white; padding: 20px; border-radius: 10px 10px 0 0; margin: -20px -20px 20px -20px; }
+          .content { padding: 20px 0; }
+          .button { display: inline-block; background-color: #4CAF50; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 10px 0; }
+          .button:hover { background-color: #45a049; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
+          .highlight { background-color: #E8F5E8; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🌾 You're Invited to FarmTally!</h1>
+          </div>
+          <div class="content">
+            <p>Hello!</p>
+            
+            <p><strong>${inviterName}</strong> has invited you to join <strong>${organizationName}</strong> as a Field Manager on FarmTally.</p>
+            
+            ${message ? `<div class="highlight"><p><strong>Personal Message:</strong></p><p>"${message}"</p></div>` : ''}
+            
+            <p>FarmTally is a comprehensive corn procurement management system that will help you:</p>
+            <ul>
+              <li>Manage lorry requests and assignments</li>
+              <li>Record farmer deliveries and weights</li>
+              <li>Track quality assessments</li>
+              <li>Handle advance payments</li>
+              <li>Generate reports and analytics</li>
+            </ul>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${invitationLink}" class="button">Accept Invitation & Create Account</a>
+            </div>
+            
+            <p><strong>What happens next?</strong></p>
+            <ol>
+              <li>Click the invitation link above</li>
+              <li>Create your secure password</li>
+              <li>Complete your profile setup</li>
+              <li>Start managing field operations!</li>
+            </ol>
+            
+            <p><em>This invitation will expire in 7 days. If you have any questions, please contact ${inviterName} or your organization administrator.</em></p>
+          </div>
+          
+          <div class="footer">
+            <p>© 2024 FarmTally. All rights reserved.</p>
+            <p>This is an automated message. Please do not reply to this email.</p>
           </div>
         </div>
       </body>

@@ -208,7 +208,7 @@ node test-db-connection.js
 - **Notify team members** about the cleanup
 - **Update development workflows** to use new structure
 - **Remove old deployment instructions** from team docs
-- **Focus on single deployment path** (Railway + Vercel recommended)
+- **Focus on single deployment path** (VPS deployment recommended)
 
 ## 📋 **File Structure Summary**
 

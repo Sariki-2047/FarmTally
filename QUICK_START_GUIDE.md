@@ -1,176 +1,214 @@
-# 🚀 FarmTally Quick Start Guide
+# FarmTally Quick Start Guide
 
-## ✅ Project Status After Cleanup
+## 🚀 Get Up and Running in 15 Minutes
 
-Your FarmTally project has been successfully cleaned up and is ready to run! However, you need to set up a database connection first.
+### Prerequisites
+- Node.js 18+ installed
+- PostgreSQL 14+ running
+- Git access to repository
+- VPS access (for deployment)
 
-## 🗄️ Database Setup Options
+## Step 1: Clone & Setup Backend (5 minutes)
 
-### Option 1: Railway PostgreSQL (Recommended - Free & Fast)
-
-1. **Go to Railway**: https://railway.app
-2. **Sign up** with GitHub
-3. **Create New Project** → **Provision PostgreSQL**
-4. **Copy Database URL** from Railway dashboard
-5. **Update your .env file**:
-   ```env
-   DATABASE_URL="postgresql://postgres:password@host:port/database"
-   ```
-
-### Option 2: Neon PostgreSQL (Free Tier)
-
-1. **Go to Neon**: https://neon.tech
-2. **Sign up** and create a new project
-3. **Copy connection string**
-4. **Update your .env file**
-
-### Option 3: Local PostgreSQL
-
-1. **Install PostgreSQL**: https://www.postgresql.org/download/
-2. **Create database**: `createdb farmtally`
-3. **Update .env**:
-   ```env
-   DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/farmtally"
-   ```
-
-## 🚀 Quick Start Commands
-
-Once you have your database URL set up:
-
-### 1. Install Dependencies (if not done)
 ```bash
+# Clone the repository
+git clone [repository-url]
+cd farmtally-backend
+
+# Install dependencies
 npm install
+
+# Copy environment file
+cp .env.example .env
+
+# Edit .env with your database URL
+nano .env
 ```
 
-### 2. Generate Prisma Client
-```bash
-npm run generate
+**Required .env variables:**
+```env
+DATABASE_URL=postgresql://username:password@localhost:5432/farmtally
+JWT_SECRET=your-secret-key
+SMTP_USER=noreply@farmtally.in
+SMTP_PASS=2t/!P1K]w
 ```
 
-### 3. Run Database Migrations
+## Step 2: Database Setup (3 minutes)
+
 ```bash
-npm run migrate
+# Generate Prisma client
+npx prisma generate
+
+# Run migrations
+npx prisma migrate dev
+
+# Seed demo data
+npx prisma db seed
 ```
 
-### 4. Seed Sample Data
+## Step 3: Start Development Server (1 minute)
+
 ```bash
-npm run seed
+# Start simple server (recommended)
+npm run dev:simple
+
+# Server will start on http://localhost:9999
+# Health check: http://localhost:9999/health
 ```
 
-### 5. Start Development Server
+## Step 4: Setup Frontend (3 minutes)
+
 ```bash
+# In new terminal
+cd farmtally-frontend
+
+# Install dependencies
+npm install
+
+# Copy environment file
+cp .env.local.example .env.local
+
+# Edit API URL
+echo "NEXT_PUBLIC_API_URL=http://localhost:9999" > .env.local
+
+# Start frontend
 npm run dev
 ```
 
-### 6. Test the API
-Open another terminal and run:
+## Step 5: Test Everything (3 minutes)
+
 ```bash
-node test-current-backend.js
+# Test backend
+node test-simple-server.js
+
+# Should show:
+# ✅ Health check passed
+# ✅ API test endpoint passed
+# ✅ Login test passed
+# ✅ Authenticated request passed
 ```
 
-## 🌐 Access Your Application
+**Test in browser:**
+1. Open http://localhost:3000
+2. Login with: `admin@farmtally.com` / `Admin123!`
+3. Should see dashboard
 
-### Backend API
-- **URL**: http://localhost:3000
-- **Health Check**: http://localhost:3000/health
-- **API Docs**: See API_DOCUMENTATION.md
+## 🚨 If Something Goes Wrong
 
-### Frontend (Flutter Web)
+### Backend won't start?
 ```bash
-cd farmtally_mobile
-flutter pub get
-flutter run -d chrome --web-port 3001
+# Check Node version
+node --version  # Should be 18+
+
+# Check database connection
+npx prisma db pull
+
+# Check environment
+cat .env | grep DATABASE_URL
 ```
-- **URL**: http://localhost:3001
 
-## 🔐 Test Credentials
-
-After seeding the database, use these credentials:
-
-### Farm Admin
-- **Email**: `admin@farmtally.com`
-- **Password**: `Admin123!`
-
-### Field Manager
-- **Email**: `manager@farmtally.com`
-- **Password**: `Manager123!`
-
-### Farmer
-- **Email**: `farmer@farmtally.com`
-- **Password**: `Farmer123!`
-
-## 🧪 Testing Your Setup
-
-### 1. Quick Backend Test
+### Frontend can't connect?
 ```bash
-# Test database connection
-node test-db-connection.js
+# Check API URL
+cat farmtally-frontend/.env.local
 
-# Test API endpoints
-node test-current-backend.js
+# Test backend directly
+curl http://localhost:9999/health
 ```
 
-### 2. Full System Test
-Use the **TESTING_CHECKLIST.md** for comprehensive testing
-
-### 3. User Acceptance Testing
-Use **USER_ACCEPTANCE_TESTING.md** for detailed validation
-
-## 🚨 Troubleshooting
-
-### Database Connection Issues
+### Database issues?
 ```bash
-# Check if your DATABASE_URL is correct
-echo $DATABASE_URL
+# Reset database
+npx prisma migrate reset
 
-# Test connection manually
-node test-db-connection.js
+# Re-seed data
+npx prisma db seed
 ```
 
-### Port Already in Use
+## 🚀 Deploy to Production
+
+### Quick VPS Deployment
 ```bash
-# Kill process on port 3000
-npx kill-port 3000
+# Deploy simple server (safest option)
+./deploy-simple-server.sh
 
-# Or use different port
-PORT=3001 npm run dev
+# Or manual deployment
+ssh root@147.93.153.247
+cd /root/farmtally
+git pull
+npm install
+pm2 restart farmtally-backend
 ```
 
-### Prisma Issues
+### Update Frontend
 ```bash
-# Reset Prisma
-npm run generate
-npx prisma db push
-npm run seed
+# Frontend auto-deploys on git push to main
+git push origin main
 ```
 
-## 📁 Current Project Structure
+## 🧪 Demo Accounts
 
 ```
-FarmTally/
-├── src/                    # Backend API (Node.js + Express)
-├── farmtally_mobile/       # Frontend App (Flutter)
-├── prisma/                 # Database Schema & Migrations
-├── docs/                   # Project Documentation
-├── deploy.sh              # Production Deployment
-├── package.json           # Dependencies & Scripts
-└── .env                   # Environment Configuration
+Farm Admin:     admin@farmtally.com / Admin123!
+Field Manager:  manager@farmtally.com / Manager123!
+Farmer:         farmer@farmtally.com / Farmer123!
 ```
 
-## 🎯 Next Steps
+## 📞 Emergency Contacts
 
-1. **Set up database** using one of the options above
-2. **Run the quick start commands**
-3. **Test the system** using the testing documentation
-4. **Deploy to production** using `./deploy.sh railway`
+- **VPS**: root@147.93.153.247 (SSH key required)
+- **Frontend**: https://app.farmtally.in (Vercel)
+- **Email**: noreply@farmtally.in (Hostinger)
 
-## 📞 Need Help?
+## 🔧 Common Commands
 
-- **Check**: API_DOCUMENTATION.md for API reference
-- **Use**: BUG_REPORT_TEMPLATE.md to report issues
-- **Request**: FEATURE_REQUEST_TEMPLATE.md for enhancements
-- **Test**: TESTING_CHECKLIST.md for validation
+```bash
+# Backend
+npm run dev:simple    # Start simple server
+npm run dev          # Start full server (may have issues)
+npm run build        # Build for production
+npm test             # Run tests
+
+# Frontend
+npm run dev          # Start development
+npm run build        # Build for production
+npm run start        # Start production build
+
+# Database
+npx prisma studio    # Database GUI
+npx prisma migrate dev  # Run migrations
+npx prisma db seed   # Seed demo data
+
+# Deployment
+pm2 status           # Check server status
+pm2 logs farmtally-backend  # View logs
+pm2 restart farmtally-backend  # Restart server
+```
+
+## 🎯 What Works Right Now
+
+✅ **Authentication**: Login/logout/registration  
+✅ **User Management**: Role-based access  
+✅ **Basic CRUD**: Farmers, lorries, deliveries  
+✅ **Email System**: SMTP configured and working  
+✅ **Frontend**: Next.js app with Tailwind UI  
+✅ **Database**: PostgreSQL with Prisma ORM  
+
+## ⚠️ Known Issues
+
+❌ **Full Server Build**: TypeScript errors (use simple server)  
+❌ **HTTPS**: Backend uses HTTP only  
+❌ **Tests**: Minimal test coverage  
+❌ **Schema**: Some Prisma model mismatches  
+
+## 📚 Next Steps
+
+1. **Fix Schema Issues**: Run `npx prisma db pull` and fix TypeScript errors
+2. **Add HTTPS**: Configure SSL on VPS
+3. **Write Tests**: Add comprehensive test coverage
+4. **Monitor**: Set up logging and error tracking
+5. **Optimize**: Add caching and performance improvements
 
 ---
 
-**Your FarmTally system is ready to go! Just set up the database and you're all set.** 🌾✨
+**Need Help?** Check the full `DEVELOPER_HANDOVER_DOCUMENT.md` for detailed information.

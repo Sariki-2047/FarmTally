@@ -59,8 +59,8 @@ export class LorryRequestService {
       throw new ForbiddenError('Only field managers can create lorry requests');
     }
 
-    if (manager.status !== 'ACTIVE') {
-      throw new BadRequestError('Inactive users cannot create requests');
+    if (manager.status !== 'APPROVED') {
+      throw new BadRequestError('Unapproved users cannot create requests');
     }
 
     // Validate required date is not in the past

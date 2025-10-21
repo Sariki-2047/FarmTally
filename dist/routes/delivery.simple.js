@@ -84,22 +84,38 @@ router.get('/:deliveryId', (0, errorHandler_1.asyncHandler)(async (req, res) => 
 }));
 router.put('/:deliveryId', (0, errorHandler_1.asyncHandler)(async (req, res) => {
     const { deliveryId } = req.params;
-    const { bagsCount, individualWeights, moistureContent, qualityGrade, photos, notes } = req.body;
-    if (req.user.role !== 'FIELD_MANAGER') {
+    const { bagsCount, individualWeights, moistureContent, qualityGrade, qualityDeduction, pricePerKg, photos, notes } = req.body;
+    if (req.user.role !== 'FIELD_MANAGER' && req.user.role !== 'FARM_ADMIN') {
         return res.status(403).json({
             success: false,
-            error: 'Only field managers can update deliveries'
+            error: 'Only field managers and farm admins can update deliveries'
         });
     }
     try {
-        const delivery = await delivery_service_simple_1.deliveryService.updateDelivery(deliveryId, {
-            bagsCount: bagsCount ? parseInt(bagsCount) : undefined,
-            individualWeights: individualWeights ? individualWeights.map((w) => parseFloat(w)) : undefined,
-            moistureContent: moistureContent ? parseFloat(moistureContent) : undefined,
-            qualityGrade,
-            photos,
-            notes
-        }, req.user.id, req.user.organizationId);
+        const updateData = {};
+        if (req.user.role === 'FIELD_MANAGER') {
+            if (bagsCount)
+                updateData.bagsCount = parseInt(bagsCount);
+            if (individualWeights)
+                updateData.individualWeights = individualWeights.map((w) => parseFloat(w));
+            if (moistureContent !== undefined)
+                updateData.moistureContent = parseFloat(moistureContent);
+            if (qualityGrade)
+                updateData.qualityGrade = qualityGrade;
+            if (photos)
+                updateData.photos = photos;
+            if (notes)
+                updateData.notes = notes;
+        }
+        if (req.user.role === 'FARM_ADMIN') {
+            if (qualityDeduction !== undefined)
+                updateData.qualityDeduction = parseFloat(qualityDeduction);
+            if (pricePerKg !== undefined)
+                updateData.pricePerKg = parseFloat(pricePerKg);
+            if (qualityGrade)
+                updateData.qualityGrade = qualityGrade;
+        }
+        const delivery = await delivery_service_simple_1.deliveryService.updateDelivery(deliveryId, updateData, req.user.id, req.user.organizationId);
         res.json({
             success: true,
             data: delivery,
@@ -177,6 +193,28 @@ router.patch('/:deliveryId/pricing', (0, errorHandler_1.asyncHandler)(async (req
         });
     }
 }));
+router.post('/lorries/:lorryId/clear-pending', (0, errorHandler_1.asyncHandler)(async (req, res) => {
+    const { lorryId } = req.params;
+    if (req.user.role !== 'FIELD_MANAGER') {
+        return res.status(403).json({
+            success: false,
+            error: 'Only field managers can clear pending deliveries'
+        });
+    }
+    try {
+        await delivery_service_simple_1.deliveryService.clearPendingDeliveries(lorryId, req.user.organizationId);
+        res.json({
+            success: true,
+            message: 'Pending deliveries cleared successfully'
+        });
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            error: error.message
+        });
+    }
+}));
 router.post('/lorries/:lorryId/submit', (0, errorHandler_1.asyncHandler)(async (req, res) => {
     const { lorryId } = req.params;
     if (req.user.role !== 'FIELD_MANAGER') {
@@ -238,6 +276,34 @@ router.delete('/:deliveryId', (0, errorHandler_1.asyncHandler)(async (req, res) 
     }
     catch (error) {
         res.status(400).json({
+            success: false,
+            error: error.message
+        });
+    }
+}));
+router.get('/', (0, errorHandler_1.asyncHandler)(async (req, res) => {
+    try {
+        let deliveries;
+        if (req.user.role === 'FARM_ADMIN') {
+            deliveries = await delivery_service_simple_1.deliveryService.getOrganizationDeliveries(req.user.organizationId);
+        }
+        else if (req.user.role === 'FIELD_MANAGER') {
+            deliveries = await delivery_service_simple_1.deliveryService.getFieldManagerDeliveries(req.user.id, req.user.organizationId);
+        }
+        else {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        res.json({
+            success: true,
+            data: deliveries,
+            count: deliveries.length
+        });
+    }
+    catch (error) {
+        res.status(500).json({
             success: false,
             error: error.message
         });

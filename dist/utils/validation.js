@@ -85,7 +85,7 @@ exports.lorrySchemas = {
         name: joi_1.default.string().min(2).max(255),
         licensePlate: joi_1.default.string().min(2).max(50),
         capacity: exports.commonSchemas.positiveInteger,
-        status: joi_1.default.string().valid('AVAILABLE', 'ASSIGNED', 'IN_TRANSIT', 'MAINTENANCE'),
+        status: joi_1.default.string().valid('AVAILABLE', 'ASSIGNED', 'LOADING', 'IN_TRANSIT', 'SUBMITTED', 'PROCESSED', 'SENT_TO_DEALER', 'MAINTENANCE'),
         assignedManagerId: joi_1.default.string().uuid().allow(null),
         location: joi_1.default.object(),
         maintenanceSchedule: joi_1.default.object(),

@@ -15,8 +15,8 @@ class FarmerService {
         if (!['FARM_ADMIN', 'FIELD_MANAGER'].includes(user.role)) {
             throw new error_middleware_1.ForbiddenError('Only farm admins and field managers can create farmers');
         }
-        if (user.status !== 'ACTIVE') {
-            throw new error_middleware_1.BadRequestError('Inactive users cannot create farmers');
+        if (user.status !== 'APPROVED') {
+            throw new error_middleware_1.BadRequestError('Unapproved users cannot create farmers');
         }
         const existingFarmer = await database_1.prisma.farmer.findFirst({
             where: {

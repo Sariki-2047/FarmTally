@@ -55,8 +55,8 @@ export class FarmerService {
       throw new ForbiddenError('Only farm admins and field managers can create farmers');
     }
 
-    if (user.status !== 'ACTIVE') {
-      throw new BadRequestError('Inactive users cannot create farmers');
+    if (user.status !== 'APPROVED') {
+      throw new BadRequestError('Unapproved users cannot create farmers');
     }
 
     // Check if farmer with same phone already exists in this organization

@@ -63,6 +63,8 @@ export declare class EmailService {
     private generatePaymentTemplate;
     private generateAdvancePaymentTemplate;
     private generateDeliveryCompletionTemplate;
+    sendFieldManagerInvitation(inviteeEmail: string, inviterName: string, organizationName: string, invitationLink: string, message?: string): Promise<boolean>;
+    private generateInvitationTemplate;
 }
 export default EmailService;
 //# sourceMappingURL=emailService.d.ts.map

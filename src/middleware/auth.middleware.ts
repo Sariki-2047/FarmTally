@@ -57,9 +57,9 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
             });
         }
 
-        if (user.status !== 'ACTIVE') {
+        if (user.status !== 'APPROVED') {
             return res.status(401).json({
-                error: 'Account inactive',
+                error: 'Account not approved',
                 message: 'Your account has been deactivated'
             });
         }

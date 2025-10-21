@@ -253,8 +253,8 @@ export class AuthService {
         },
       });
 
-      if (!user || user.status !== 'ACTIVE') {
-        throw new UnauthorizedError('User not found or inactive');
+      if (!user || user.status !== 'APPROVED') {
+        throw new UnauthorizedError('User not found or not approved');
       }
 
       // Generate new tokens
@@ -510,8 +510,7 @@ export class AuthService {
             </div>
             
             <div style="text-align: center; margin: 20px 0;">
-              <a href="#" class="button">Approve User</a>
-              <a href="#" class="button reject-button">Reject User</a>
+              <a href="${process.env.FRONTEND_URL || 'https://app.farmtally.in'}/admin/users" class="button">Review User</a>
             </div>
             
             <p>Please review this registration and take appropriate action through the system admin dashboard.</p>

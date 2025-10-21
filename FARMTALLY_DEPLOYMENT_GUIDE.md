@@ -13,10 +13,10 @@ FarmTally is now ready for deployment with:
 
 ## 🌐 **Deployment Options**
 
-### **Option 1: Quick Deploy (Recommended)**
-**Platform**: Vercel (Frontend) + Railway (Backend)
-**Time**: 15 minutes
-**Cost**: Free tier available
+### **Option 1: VPS Deploy (Recommended)**
+**Platform**: VPS (Frontend + Backend)
+**Time**: 30 minutes
+**Cost**: VPS hosting required
 **Best for**: Testing and demos
 
 ### **Option 2: Professional Deploy**
@@ -31,9 +31,9 @@ FarmTally is now ready for deployment with:
 **Cost**: $7-25/month
 **Best for**: Small to medium scale
 
-## 🚀 **Option 1: Quick Deploy (Vercel + Railway)**
+## 🚀 **Option 1: VPS Deploy**
 
-### **Step 1: Deploy Backend to Railway**
+### **Step 1: Deploy Backend to VPS**
 
 1. **Create Railway Account**: https://railway.app
 2. **Deploy from GitHub**:
@@ -57,21 +57,21 @@ FarmTally is now ready for deployment with:
 4. **Deploy**: Railway automatically builds and deploys
 5. **Get URL**: Railway provides URL like `https://farmtally-backend.railway.app`
 
-### **Step 2: Deploy Frontend to Vercel**
+### **Step 2: Deploy Frontend to VPS**
 
-1. **Create Vercel Account**: https://vercel.com
-2. **Deploy Flutter Web**:
+1. **Setup VPS**: Follow CONTABO_VPS_DEPLOYMENT_GUIDE.md
+2. **Build Next.js App**:
    ```bash
-   cd farmtally_mobile
-   flutter build web --dart-define=API_BASE_URL=https://farmtally-backend.railway.app
+   cd farmtally-frontend
+   npm install
+   npm run build
    ```
-3. **Vercel Setup**:
-   - Connect GitHub repository
-   - Set build command: `cd farmtally_mobile && flutter build web`
-   - Set output directory: `farmtally_mobile/build/web`
-   - Add environment variable: `API_BASE_URL=https://farmtally-backend.railway.app`
-4. **Deploy**: Vercel builds and deploys automatically
-5. **Get URL**: Vercel provides URL like `https://farmtally.vercel.app`
+3. **Configure Nginx**:
+   - Setup reverse proxy for frontend
+   - Configure SSL with Let's Encrypt
+   - Set environment variables
+4. **Deploy**: Use PM2 for process management
+5. **Get URL**: Your custom domain like `https://app.farmtally.in`
 
 ## 🔧 **Option 2: AWS Professional Deploy**
 
@@ -186,7 +186,7 @@ PORT=3000
 API_VERSION=v1
 
 # CORS
-CORS_ORIGIN=https://farmtally.vercel.app,https://farmtally.com
+CORS_ORIGIN=https://app.farmtally.in,https://farmtally.com
 
 # Email (Optional)
 SMTP_HOST=smtp.gmail.com
@@ -214,10 +214,10 @@ flutter build web \
 After deployment, you'll have:
 
 ### **Production URLs**
-- **Frontend**: `https://farmtally.vercel.app`
-- **Backend API**: `https://farmtally-backend.railway.app`
-- **Admin Login**: `https://farmtally.vercel.app/#/login`
-- **API Health**: `https://farmtally-backend.railway.app/health`
+- **Frontend**: `https://app.farmtally.in`
+- **Backend API**: `https://app.farmtally.in/api`
+- **Admin Login**: `https://app.farmtally.in/login`
+- **API Health**: `https://app.farmtally.in/api/health`
 
 ### **User Access**
 - **Farm Admin**: Login → Full admin dashboard
@@ -315,19 +315,19 @@ const limiter = rateLimit({
 
 ## 📋 **Deployment Commands Summary**
 
-### **Quick Deploy (Railway + Vercel)**
+### **VPS Deploy**
 ```bash
-# 1. Backend to Railway
-git push origin main  # Railway auto-deploys
+# 1. Deploy to VPS
+ssh user@your-vps-ip
+cd /var/www/farmtally
+git pull origin main
 
-# 2. Frontend to Vercel
-cd farmtally_mobile
-flutter build web --dart-define=API_BASE_URL=https://your-railway-url.railway.app
-# Upload build/web to Vercel
+# 2. Build and deploy
+./deploy.sh
 
 # 3. Test
-curl https://your-railway-url.railway.app/health
-open https://your-vercel-url.vercel.app
+curl https://app.farmtally.in/api/health
+open https://app.farmtally.in
 ```
 
 ### **Mobile Apps**
@@ -372,7 +372,7 @@ flutter build windows --dart-define=API_BASE_URL=https://your-api-url.com
 
 ## 💡 **Next Steps**
 
-1. **Choose deployment option** (Railway + Vercel recommended for quick start)
+1. **Choose deployment option** (VPS recommended for production)
 2. **Deploy backend** and get API URL
 3. **Deploy frontend** with production API URL
 4. **Test complete system** end-to-end

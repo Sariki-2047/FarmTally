@@ -229,7 +229,7 @@ serve(async (req) => {
         }
 
         // Generate JWT token
-        const jwtSecret = Deno.env.get('JWT_SECRET') || 'farmtally-default-secret'
+        const jwtSecret = Deno.env.get('JWT_SECRET') || 'farmtally-production-secret-2024-secure-key-for-jwt-tokens'
         const key = await crypto.subtle.importKey(
           "raw",
           new TextEncoder().encode(jwtSecret),

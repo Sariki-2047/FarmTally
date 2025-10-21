@@ -32,8 +32,8 @@ class LorryService {
             if (manager.role !== 'FIELD_MANAGER') {
                 throw new error_middleware_1.BadRequestError('Can only assign lorries to field managers');
             }
-            if (manager.status !== 'ACTIVE') {
-                throw new error_middleware_1.BadRequestError('Cannot assign lorry to inactive manager');
+            if (manager.status !== 'APPROVED') {
+                throw new error_middleware_1.BadRequestError('Cannot assign lorry to unapproved manager');
             }
         }
         const lorry = await database_1.prisma.lorry.create({
@@ -240,8 +240,8 @@ class LorryService {
                 if (manager.role !== 'FIELD_MANAGER') {
                     throw new error_middleware_1.BadRequestError('Can only assign lorries to field managers');
                 }
-                if (manager.status !== 'ACTIVE') {
-                    throw new error_middleware_1.BadRequestError('Cannot assign lorry to inactive manager');
+                if (manager.status !== 'APPROVED') {
+                    throw new error_middleware_1.BadRequestError('Cannot assign lorry to unapproved manager');
                 }
                 data.status = 'ASSIGNED';
                 data.assignedAt = new Date();

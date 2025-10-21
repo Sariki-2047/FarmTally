@@ -34,7 +34,9 @@ class DeliveryService {
             }
         });
         if (existingDelivery) {
-            throw new Error('Farmer is already added to this lorry');
+            await prisma_1.prisma.delivery.delete({
+                where: { id: existingDelivery.id }
+            });
         }
         if (data.individualWeights.length !== data.bagsCount) {
             throw new Error('Number of individual weights must match bags count');
@@ -128,7 +130,79 @@ class DeliveryService {
                     select: {
                         id: true,
                         plateNumber: true,
-                        capacity: true
+                        capacity: true,
+                        status: true
+                    }
+                },
+                fieldManager: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        return deliveries;
+    }
+    async getOrganizationDeliveries(organizationId) {
+        const deliveries = await prisma_1.prisma.delivery.findMany({
+            where: {
+                organizationId: organizationId
+            },
+            include: {
+                farmer: {
+                    select: {
+                        id: true,
+                        name: true,
+                        phone: true,
+                        address: true
+                    }
+                },
+                lorry: {
+                    select: {
+                        id: true,
+                        plateNumber: true,
+                        capacity: true,
+                        status: true
+                    }
+                },
+                fieldManager: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        return deliveries;
+    }
+    async getFieldManagerDeliveries(fieldManagerId, organizationId) {
+        const deliveries = await prisma_1.prisma.delivery.findMany({
+            where: {
+                fieldManagerId: fieldManagerId,
+                organizationId: organizationId
+            },
+            include: {
+                farmer: {
+                    select: {
+                        id: true,
+                        name: true,
+                        phone: true,
+                        address: true
+                    }
+                },
+                lorry: {
+                    select: {
+                        id: true,
+                        plateNumber: true,
+                        capacity: true,
+                        status: true
                     }
                 },
                 fieldManager: {
@@ -148,15 +222,29 @@ class DeliveryService {
         const delivery = await prisma_1.prisma.delivery.findFirst({
             where: {
                 id: deliveryId,
-                organizationId: organizationId,
-                fieldManagerId: userId
+                organizationId: organizationId
             }
         });
         if (!delivery) {
-            throw new Error('Delivery not found or access denied');
+            throw new Error('Delivery not found');
         }
-        if (delivery.status !== 'PENDING') {
-            throw new Error('Can only update pending deliveries');
+        const user = await prisma_1.prisma.user.findUnique({
+            where: { id: userId },
+            select: { role: true }
+        });
+        if (!user) {
+            throw new Error('User not found');
+        }
+        if (user.role === 'FIELD_MANAGER') {
+            if (delivery.fieldManagerId !== userId) {
+                throw new Error('Access denied - you can only update your own deliveries');
+            }
+            if (delivery.status !== 'PENDING') {
+                throw new Error('Can only update pending deliveries');
+            }
+        }
+        if (user.role !== 'FIELD_MANAGER' && user.role !== 'FARM_ADMIN') {
+            throw new Error('Access denied');
         }
         let updateData = { ...data };
         if (data.individualWeights && data.bagsCount) {
@@ -166,14 +254,45 @@ class DeliveryService {
             const grossWeight = data.individualWeights.reduce((sum, weight) => sum + weight, 0);
             const moistureValue = data.moistureContent || Number(delivery.moistureContent || 0);
             const standardDeduction = this.calculateStandardDeduction(data.bagsCount, moistureValue);
-            const qualityDeduction = Number(delivery.qualityDeduction || 0);
+            const qualityDeduction = data.qualityDeduction !== undefined ? data.qualityDeduction : Number(delivery.qualityDeduction || 0);
             updateData = {
                 ...updateData,
                 grossWeight,
                 standardDeduction,
-                qualityDeduction,
                 netWeight: grossWeight - standardDeduction - qualityDeduction
             };
+        }
+        if (data.qualityDeduction !== undefined) {
+            const grossWeight = Number(delivery.grossWeight || 0);
+            const standardDeduction = Number(delivery.standardDeduction || 0);
+            updateData.netWeight = grossWeight - standardDeduction - data.qualityDeduction;
+        }
+        if (data.pricePerKg !== undefined && data.pricePerKg > 0) {
+            const netWeight = updateData.netWeight !== undefined ? updateData.netWeight : Number(delivery.netWeight || 0);
+            const advanceAmount = Number(delivery.advanceAmount || 0);
+            updateData.totalValue = netWeight * data.pricePerKg;
+            updateData.finalAmount = updateData.totalValue - advanceAmount;
+            updateData.processedAt = new Date();
+        }
+        if (user.role === 'FARM_ADMIN' && (data.pricePerKg !== undefined || data.qualityDeduction !== undefined)) {
+            const allDeliveries = await prisma_1.prisma.delivery.findMany({
+                where: { lorryId: delivery.lorryId },
+                select: { id: true, pricePerKg: true }
+            });
+            const processedDeliveries = allDeliveries.filter(d => (d.pricePerKg || 0) > 0);
+            if (processedDeliveries.length === allDeliveries.length) {
+                await prisma_1.prisma.lorry.update({
+                    where: { id: delivery.lorryId },
+                    data: {
+                        status: 'PROCESSED',
+                        processedAt: new Date()
+                    }
+                });
+                await prisma_1.prisma.delivery.updateMany({
+                    where: { lorryId: delivery.lorryId },
+                    data: { status: 'PROCESSED' }
+                });
+            }
         }
         const updatedDelivery = await prisma_1.prisma.delivery.update({
             where: { id: deliveryId },
@@ -312,16 +431,33 @@ class DeliveryService {
         });
         return updatedDelivery;
     }
+    async clearPendingDeliveries(lorryId, organizationId) {
+        await prisma_1.prisma.delivery.deleteMany({
+            where: {
+                lorryId: lorryId,
+                organizationId: organizationId,
+                status: 'PENDING'
+            }
+        });
+    }
     async submitLorry(lorryId, userId, organizationId) {
         const lorry = await prisma_1.prisma.lorry.findFirst({
             where: {
                 id: lorryId,
-                organizationId: organizationId,
-                assignedManagerId: userId
+                organizationId: organizationId
             }
         });
         if (!lorry) {
-            throw new Error('Lorry not found or access denied');
+            throw new Error('Lorry not found');
+        }
+        const userDeliveries = await prisma_1.prisma.delivery.count({
+            where: {
+                lorryId: lorryId,
+                fieldManagerId: userId
+            }
+        });
+        if (userDeliveries === 0 && lorry.assignedManagerId !== userId) {
+            throw new Error('Access denied - you have no deliveries on this lorry');
         }
         const deliveryCount = await prisma_1.prisma.delivery.count({
             where: { lorryId: lorryId }
@@ -331,24 +467,45 @@ class DeliveryService {
         }
         await prisma_1.prisma.lorry.update({
             where: { id: lorryId },
-            data: { status: 'SUBMITTED' }
+            data: {
+                status: 'SUBMITTED',
+                submittedAt: new Date()
+            }
         });
         await prisma_1.prisma.delivery.updateMany({
             where: { lorryId: lorryId },
-            data: { status: 'IN_PROGRESS' }
+            data: {
+                status: 'IN_PROGRESS',
+                submittedAt: new Date()
+            }
         });
     }
     async markSentToDealer(lorryId, organizationId) {
-        await prisma_1.prisma.lorry.update({
+        const lorry = await prisma_1.prisma.lorry.findFirst({
             where: {
                 id: lorryId,
                 organizationId: organizationId
-            },
-            data: { status: 'SENT_TO_DEALER' }
+            }
+        });
+        if (!lorry) {
+            throw new Error('Lorry not found');
+        }
+        if (lorry.status !== 'PROCESSED') {
+            throw new Error('Lorry must be processed before sending to dealer');
+        }
+        await prisma_1.prisma.lorry.update({
+            where: { id: lorryId },
+            data: {
+                status: 'SENT_TO_DEALER',
+                sentToDealerAt: new Date()
+            }
         });
         await prisma_1.prisma.delivery.updateMany({
             where: { lorryId: lorryId },
-            data: { status: 'COMPLETED' }
+            data: {
+                status: 'COMPLETED',
+                completedAt: new Date()
+            }
         });
     }
     async getDeliveryById(deliveryId, organizationId) {

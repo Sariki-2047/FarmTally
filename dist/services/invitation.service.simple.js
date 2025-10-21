@@ -36,7 +36,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.invitationService = exports.InvitationService = void 0;
 const prisma_1 = require("../lib/prisma");
 const crypto = __importStar(require("crypto"));
+const emailService_1 = require("./emailService");
 class InvitationService {
+    emailService;
+    constructor() {
+        this.emailService = new emailService_1.EmailService();
+    }
     async createInvitation(data, inviterUserId) {
         const inviter = await prisma_1.prisma.user.findUnique({
             where: { id: inviterUserId },
@@ -76,6 +81,17 @@ class InvitationService {
                 expiresAt: expiresAt
             }
         });
+        if (data.role === 'FIELD_MANAGER') {
+            const invitationLink = `${process.env.FRONTEND_URL || 'https://app.farmtally.in'}/register?token=${invitationToken}`;
+            const inviterName = `${inviter.firstName || ''} ${inviter.lastName || ''}`.trim() || inviter.email;
+            try {
+                await this.emailService.sendFieldManagerInvitation(data.email, inviterName, data.organizationName, invitationLink, data.message);
+                console.log(`✅ Invitation email sent to ${data.email}`);
+            }
+            catch (error) {
+                console.error(`❌ Failed to send invitation email to ${data.email}:`, error);
+            }
+        }
         return invitation;
     }
     async validateInvitation(token) {

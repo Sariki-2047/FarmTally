@@ -14,6 +14,8 @@ export interface UpdateDeliveryData {
     individualWeights?: number[];
     moistureContent?: number;
     qualityGrade?: 'A' | 'B' | 'C' | 'D' | 'REJECTED';
+    qualityDeduction?: number;
+    pricePerKg?: number;
     photos?: string[];
     notes?: string;
 }
@@ -75,6 +77,101 @@ export declare class DeliveryService {
     getLorryDeliveries(lorryId: string, organizationId: string): Promise<({
         lorry: {
             id: string;
+            status: import(".prisma/client").$Enums.LorryStatus;
+            capacity: number;
+            plateNumber: string;
+        };
+        farmer: {
+            id: string;
+            phone: string;
+            name: string;
+            address: string | null;
+        };
+        fieldManager: {
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+        };
+    } & {
+        id: string;
+        status: import(".prisma/client").$Enums.DeliveryStatus;
+        organizationId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        lorryId: string;
+        farmerId: string;
+        deliveryDate: Date | null;
+        bagsCount: number;
+        individualWeights: import("@prisma/client/runtime/library").JsonValue;
+        moistureContent: number | null;
+        photos: import("@prisma/client/runtime/library").JsonValue | null;
+        notes: string | null;
+        fieldManagerId: string;
+        grossWeight: number;
+        qualityGrade: import(".prisma/client").$Enums.QualityGrade | null;
+        standardDeduction: number | null;
+        qualityDeduction: number | null;
+        netWeight: number;
+        pricePerKg: number | null;
+        totalValue: number | null;
+        advanceAmount: number | null;
+        interestCharges: number | null;
+        finalAmount: number | null;
+        deliveredAt: Date | null;
+        processedAt: Date | null;
+    })[]>;
+    getOrganizationDeliveries(organizationId: string): Promise<({
+        lorry: {
+            id: string;
+            status: import(".prisma/client").$Enums.LorryStatus;
+            capacity: number;
+            plateNumber: string;
+        };
+        farmer: {
+            id: string;
+            phone: string;
+            name: string;
+            address: string | null;
+        };
+        fieldManager: {
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+        };
+    } & {
+        id: string;
+        status: import(".prisma/client").$Enums.DeliveryStatus;
+        organizationId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        lorryId: string;
+        farmerId: string;
+        deliveryDate: Date | null;
+        bagsCount: number;
+        individualWeights: import("@prisma/client/runtime/library").JsonValue;
+        moistureContent: number | null;
+        photos: import("@prisma/client/runtime/library").JsonValue | null;
+        notes: string | null;
+        fieldManagerId: string;
+        grossWeight: number;
+        qualityGrade: import(".prisma/client").$Enums.QualityGrade | null;
+        standardDeduction: number | null;
+        qualityDeduction: number | null;
+        netWeight: number;
+        pricePerKg: number | null;
+        totalValue: number | null;
+        advanceAmount: number | null;
+        interestCharges: number | null;
+        finalAmount: number | null;
+        deliveredAt: Date | null;
+        processedAt: Date | null;
+    })[]>;
+    getFieldManagerDeliveries(fieldManagerId: string, organizationId: string): Promise<({
+        lorry: {
+            id: string;
+            status: import(".prisma/client").$Enums.LorryStatus;
             capacity: number;
             plateNumber: string;
         };
@@ -256,6 +353,7 @@ export declare class DeliveryService {
         deliveredAt: Date | null;
         processedAt: Date | null;
     }>;
+    clearPendingDeliveries(lorryId: string, organizationId: string): Promise<void>;
     submitLorry(lorryId: string, userId: string, organizationId: string): Promise<void>;
     markSentToDealer(lorryId: string, organizationId: string): Promise<void>;
     getDeliveryById(deliveryId: string, organizationId: string): Promise<{

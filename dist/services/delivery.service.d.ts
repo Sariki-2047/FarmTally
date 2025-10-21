@@ -44,6 +44,8 @@ export interface DeliveryFilters {
     endDate?: Date;
 }
 export declare class DeliveryService {
+    private emailService;
+    constructor();
     addFarmerToLorry(lorryId: string, farmerId: string, userId: string, data: CreateDeliveryData): Promise<any>;
     getLorryDeliveries(lorryId: string, userId: string): Promise<any[]>;
     updateDelivery(deliveryId: string, userId: string, data: UpdateDeliveryData): Promise<any>;

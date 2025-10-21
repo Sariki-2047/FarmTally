@@ -29,6 +29,8 @@ export interface LorryRequestFilters {
     endDate?: Date;
 }
 export declare class LorryRequestService {
+    private emailService;
+    constructor();
     createLorryRequest(organizationId: string, managerId: string, data: CreateLorryRequestData): Promise<any>;
     getLorryRequests(organizationId: string, userId: string, filters?: LorryRequestFilters, page?: number, limit?: number): Promise<{
         requests: any[];

@@ -538,7 +538,7 @@ export class SystemAdminService {
             ` : ''}
             
             <div style="text-align: center;">
-              <a href="#" class="button">Login to FarmTally</a>
+              <a href="${process.env.FRONTEND_URL || 'https://app.farmtally.in'}/login" class="button">Login to FarmTally</a>
             </div>
             
             <h4>What's Next?</h4>
@@ -612,7 +612,7 @@ export class SystemAdminService {
             </ul>
             
             <div style="text-align: center;">
-              <a href="#" class="button">Update Registration</a>
+              <a href="${process.env.FRONTEND_URL || 'https://app.farmtally.in'}/register" class="button">Update Registration</a>
             </div>
             
             <p>We appreciate your patience and look forward to welcoming you to the FarmTally community once the required updates are made.</p>

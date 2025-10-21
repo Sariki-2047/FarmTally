@@ -18,6 +18,9 @@ const farmer_1 = __importDefault(require("./routes/farmer"));
 const delivery_simple_1 = __importDefault(require("./routes/delivery.simple"));
 const invitation_simple_1 = __importDefault(require("./routes/invitation.simple"));
 const lorry_request_simple_1 = __importDefault(require("./routes/lorry-request.simple"));
+const lorry_simple_1 = __importDefault(require("./routes/lorry.simple"));
+const email_routes_1 = __importDefault(require("./routes/email.routes"));
+const system_admin_routes_1 = __importDefault(require("./routes/system-admin.routes"));
 const app = (0, express_1.default)();
 app.use((0, helmet_1.default)({
     contentSecurityPolicy: {
@@ -52,6 +55,9 @@ app.use('/api/farmer', farmer_1.default);
 app.use('/api/deliveries', delivery_simple_1.default);
 app.use('/api/invitations', invitation_simple_1.default);
 app.use('/api/lorry-requests', lorry_request_simple_1.default);
+app.use('/api/lorries', lorry_simple_1.default);
+app.use('/api/email', email_routes_1.default);
+app.use('/api/system-admin', system_admin_routes_1.default);
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
