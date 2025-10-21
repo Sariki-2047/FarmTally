@@ -1,10 +1,6 @@
 pipeline {
     agent any
     
-    tools {
-        nodejs 'Node 18'
-    }
-    
     environment {
         // Isolated deployment configuration
         PROJECT_NAME = 'farmtally'
@@ -42,6 +38,27 @@ pipeline {
                         error('❌ Frontend package.json not found')
                     }
                     echo '✅ Project structure verified'
+                }
+            }
+        }
+        
+        stage('Setup Node.js') {
+            steps {
+                echo '🔧 Setting up Node.js environment...'
+                script {
+                    // Install Node.js if not available
+                    sh '''
+                        # Check if Node.js is available
+                        if ! command -v node &> /dev/null; then
+                            echo "Installing Node.js..."
+                            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                            sudo apt-get install -y nodejs
+                        fi
+                        
+                        # Verify installation
+                        node --version
+                        npm --version
+                    '''
                 }
             }
         }
