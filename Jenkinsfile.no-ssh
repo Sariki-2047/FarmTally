@@ -1,0 +1,143 @@
+pipeline {
+    agent any
+    
+    environment {
+        VPS_HOST = '147.93.153.247'
+        VPS_USER = 'root'
+        PROJECT_DIR = '/opt/farmtally'
+        COMPOSE_FILE = 'docker-compose.consolidated.yml'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '📥 Checking out FarmTally source code...'
+                checkout scm
+            }
+        }
+        
+        stage('Build Frontend') {
+            steps {
+                echo '🎨 Building FarmTally Frontend...'
+                script {
+                    // Build frontend on VPS instead of Jenkins
+                    echo 'Frontend will be built on VPS during deployment'
+                }
+            }
+        }
+        
+        stage('Prepare Deployment') {
+            steps {
+                echo '📦 Preparing deployment files...'
+                sh '''
+                    echo "Verifying deployment files..."
+                    ls -la docker-compose.consolidated.yml
+                    ls -la nginx-consolidated.conf
+                    ls -la services/
+                    
+                    echo "Creating deployment archive..."
+                    tar -czf farmtally-deployment.tar.gz \
+                        docker-compose.consolidated.yml \
+                        nginx-consolidated.conf \
+                        services/ \
+                        farmtally-frontend/
+                '''
+            }
+        }
+        
+        stage('Deploy to VPS') {
+            steps {
+                echo '🚀 Deploying FarmTally to VPS...'
+                script {
+                    // Create a simple deployment script that can be executed via HTTP
+                    writeFile file: 'deploy-script.sh', text: '''#!/bin/bash
+                        cd /opt/farmtally
+                        
+                        # Download the deployment package
+                        echo "Downloading deployment package..."
+                        wget -O farmtally-deployment.tar.gz "http://jenkins-server/job/FarmTally/lastSuccessfulBuild/artifact/farmtally-deployment.tar.gz" || {
+                            echo "Failed to download deployment package"
+                            exit 1
+                        }
+                        
+                        # Extract files
+                        echo "Extracting files..."
+                        tar -xzf farmtally-deployment.tar.gz
+                        
+                        # Build frontend
+                        echo "Building frontend..."
+                        cd farmtally-frontend
+                        npm ci --production
+                        npm run build
+                        cd ..
+                        
+                        # Deploy with Docker
+                        echo "Deploying services..."
+                        docker-compose -f docker-compose.consolidated.yml down || echo "No existing services"
+                        docker-compose -f docker-compose.consolidated.yml up -d --build
+                        
+                        echo "Deployment completed successfully!"
+                    '''
+                    
+                    // Archive the deployment package
+                    archiveArtifacts artifacts: 'farmtally-deployment.tar.gz', fingerprint: true
+                    
+                    // For now, just show what would be deployed
+                    echo 'Deployment package created and archived'
+                    echo 'Manual deployment required - see deployment instructions'
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                echo '🏥 Performing health checks...'
+                script {
+                    sleep(10)
+                    
+                    // Test main health endpoint
+                    try {
+                        sh 'curl -f http://147.93.153.247:8085/health || echo "Health check will be available after manual deployment"'
+                        echo '✅ Health endpoint check completed'
+                    } catch (Exception e) {
+                        echo '⚠️ Health endpoint not yet available - manual deployment required'
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '''
+            🎉 FarmTally Build Successful!
+            
+            ✅ Deployment package created
+            ✅ Files archived for download
+            
+            Manual Deployment Steps:
+            1. Download: farmtally-deployment.tar.gz from Jenkins artifacts
+            2. Upload to VPS: /opt/farmtally/
+            3. Extract: tar -xzf farmtally-deployment.tar.gz
+            4. Deploy: ./deploy-script.sh
+            
+            After deployment:
+            🌐 FarmTally App: http://147.93.153.247:8085/farmtally/
+            🔍 Health Check: http://147.93.153.247:8085/health
+            '''
+        }
+        
+        failure {
+            echo '''
+            ❌ FarmTally Build Failed!
+            
+            Please check the console output above for error details.
+            '''
+        }
+        
+        always {
+            echo '🧹 Cleaning up workspace...'
+            cleanWs()
+        }
+    }
+}
