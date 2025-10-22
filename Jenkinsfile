@@ -1,10 +1,6 @@
 pipeline {
     agent any
     
-    tools {
-        nodejs 'nodejs-18'
-    }
-    
     environment {
         VPS_HOST = '147.93.153.247'
         VPS_USER = 'root'
@@ -23,10 +19,9 @@ pipeline {
         stage('Build Frontend') {
             steps {
                 echo '🎨 Building FarmTally Frontend...'
-                dir('farmtally-frontend') {
-                    sh 'npm ci --production'
-                    sh 'npm run build'
-                    sh 'ls -la .next/'
+                script {
+                    // Build frontend on VPS instead of Jenkins
+                    echo 'Frontend will be built on VPS during deployment'
                 }
             }
         }
@@ -57,6 +52,11 @@ pipeline {
                         echo "Deploying on VPS..."
                         ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} "
                             cd ${PROJECT_DIR} &&
+                            echo 'Building frontend on VPS...' &&
+                            cd farmtally-frontend &&
+                            npm ci --production &&
+                            npm run build &&
+                            cd .. &&
                             echo 'Stopping existing services...' &&
                             docker-compose -f ${COMPOSE_FILE} down || echo 'No existing services' &&
                             echo 'Starting FarmTally consolidated system...' &&
