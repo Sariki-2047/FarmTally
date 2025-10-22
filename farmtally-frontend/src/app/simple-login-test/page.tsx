@@ -14,18 +14,14 @@ export default function SimpleLoginTest() {
     setResult('Testing...')
     
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://qvxcbdglyvzohzdefnet.supabase.co/functions/v1/farmtally-api'
-      const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2eGNiZGdseXZ6b2h6ZGVmbmV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2OTQxMzgsImV4cCI6MjA3NjI3MDEzOH0.hMzK3q1lQQPy7y0KMURxN-NwlOMO7WN_wFttWMyu9GM'
+      const API_URL = process.env.NEXT_PUBLIC_AUTH_URL || 'http://147.93.153.247:8081'
       
-      console.log('API URL:', API_URL)
-      console.log('Using anon key:', SUPABASE_ANON_KEY ? 'SET' : 'NOT SET')
+      console.log('Auth Service URL:', API_URL)
       
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           email: 'admin@farmtally.in',
@@ -82,8 +78,8 @@ export default function SimpleLoginTest() {
             <div className="bg-yellow-50 p-4 rounded-lg">
               <h3 className="text-lg font-semibold mb-2">Environment Check:</h3>
               <div className="text-sm space-y-1">
-                <p><strong>API URL:</strong> {process.env.NEXT_PUBLIC_API_URL || 'Using fallback'}</p>
-                <p><strong>Supabase Key:</strong> {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'Using fallback'}</p>
+                <p><strong>Auth Service URL:</strong> {process.env.NEXT_PUBLIC_AUTH_URL || 'Using fallback'}</p>
+                <p><strong>API Gateway URL:</strong> {process.env.NEXT_PUBLIC_API_URL || 'Using fallback'}</p>
               </div>
             </div>
           </div>

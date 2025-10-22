@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14
+    container_name: farmtally-postgres
+    environment:
+      POSTGRES_DB: farmtally
+      POSTGRES_USER: farmtally_user
+      POSTGRES_PASSWORD: farmtally_password_2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # API Gateway Service
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: farmtally-api-gateway
+    environment:
+      - NODE_ENV=production
+      - PORT=8090
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - FIELD_MANAGER_SERVICE_URL=http://field-manager-service:8088
+      - FARM_ADMIN_SERVICE_URL=http://farm-admin-service:8089
+    depends_on:
+      - postgres
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: farmtally-auth-service
+    environment:
+      - NODE_ENV=production
+      - PORT=8081
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - JWT_SECRET=your-super-secret-jwt-key-2024
+      - JWT_REFRESH_SECRET=your-super-secret-refresh-key-2024
+    depends_on:
+      - postgres
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Field Manager Service
+  field-manager-service:
+    build:
+      context: .
+      dockerfile: services/field-manager-service/Dockerfile
+    container_name: farmtally-field-manager-service
+    environment:
+      - NODE_ENV=production
+      - PORT=8088
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Farm Admin Service
+  farm-admin-service:
+    build:
+      context: .
+      dockerfile: services/farm-admin-service/Dockerfile
+    container_name: farmtally-farm-admin-service
+    environment:
+      - NODE_ENV=production
+      - PORT=8089
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./farmtally-frontend
+      dockerfile: Dockerfile
+    container_name: farmtally-frontend
+    environment:
+      - NEXT_PUBLIC_BASE_URL=http://147.93.153.247:8085/farmtally
+      - NEXT_PUBLIC_API_URL=http://147.93.153.247:8085/farmtally/api-gateway
+      - NEXT_PUBLIC_AUTH_URL=http://147.93.153.247:8085/farmtally/auth-service
+      - NEXT_PUBLIC_FIELD_MANAGER_URL=http://147.93.153.247:8085/farmtally/field-manager-service
+      - NEXT_PUBLIC_FARM_ADMIN_URL=http://147.93.153.247:8085/farmtally/farm-admin-service
+      - NODE_ENV=production
+    depends_on:
+      - api-gateway
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: farmtally-nginx
+    ports:
+      - "8085:80"
+    volumes:
+      - ./nginx-consolidated.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend
+      - api-gateway
+      - auth-service
+      - field-manager-service
+      - farm-admin-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+networks:
+  farmtally-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

@@ -1,0 +1,152 @@
+# FarmTally Microservices Stack for Portainer
+# Copy this content and paste it in Portainer Stacks
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14
+    container_name: farmtally-postgres
+    environment:
+      POSTGRES_DB: farmtally
+      POSTGRES_USER: farmtally_user
+      POSTGRES_PASSWORD: farmtally_password_2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+    labels:
+      - "farmtally.service=database"
+      - "farmtally.version=1.0"
+
+  # Auth Service
+  auth-service:
+    image: node:18-alpine
+    container_name: farmtally-auth-service
+    working_dir: /app
+    command: ["node", "server.js"]
+    ports:
+      - "8081:8081"
+    environment:
+      - NODE_ENV=production
+      - PORT=8081
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - JWT_SECRET=your-super-secret-jwt-key-2024
+      - JWT_REFRESH_SECRET=your-super-secret-refresh-key-2024
+    volumes:
+      - /opt/farmtally/services/auth-service:/app
+    depends_on:
+      - postgres
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+    labels:
+      - "farmtally.service=auth"
+      - "farmtally.version=1.0"
+
+  # Field Manager Service
+  field-manager-service:
+    image: node:18-alpine
+    container_name: farmtally-field-manager-service
+    working_dir: /app
+    command: ["node", "server.js"]
+    ports:
+      - "8088:8088"
+    environment:
+      - NODE_ENV=production
+      - PORT=8088
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+    volumes:
+      - /opt/farmtally/services/field-manager-service:/app
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+    labels:
+      - "farmtally.service=field-manager"
+      - "farmtally.version=1.0"
+
+  # Farm Admin Service
+  farm-admin-service:
+    image: node:18-alpine
+    container_name: farmtally-farm-admin-service
+    working_dir: /app
+    command: ["node", "server.js"]
+    ports:
+      - "8089:8089"
+    environment:
+      - NODE_ENV=production
+      - PORT=8089
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+    volumes:
+      - /opt/farmtally/services/farm-admin-service:/app
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+    labels:
+      - "farmtally.service=farm-admin"
+      - "farmtally.version=1.0"
+
+  # API Gateway
+  api-gateway:
+    image: node:18-alpine
+    container_name: farmtally-api-gateway
+    working_dir: /app
+    command: ["node", "server.js"]
+    ports:
+      - "8090:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - FIELD_MANAGER_SERVICE_URL=http://field-manager-service:8088
+      - FARM_ADMIN_SERVICE_URL=http://farm-admin-service:8089
+    volumes:
+      - /opt/farmtally/services/api-gateway:/app
+    depends_on:
+      - auth-service
+      - field-manager-service
+      - farm-admin-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+    labels:
+      - "farmtally.service=gateway"
+      - "farmtally.version=1.0"
+
+  # Web Interface (Optional)
+  web-interface:
+    image: nginx:alpine
+    container_name: farmtally-web-interface
+    ports:
+      - "3001:80"
+    volumes:
+      - /opt/farmtally/services/web-interface/index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+    labels:
+      - "farmtally.service=web-ui"
+      - "farmtally.version=1.0"
+
+networks:
+  farmtally-network:
+    driver: bridge
+    labels:
+      - "farmtally.network=main"
+
+volumes:
+  postgres_data:
+    labels:
+      - "farmtally.volume=database"

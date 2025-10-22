@@ -17,8 +17,9 @@ export default function DebugEnvPage() {
               <h2 className="text-xl font-semibold mb-4">Frontend Environment Variables</h2>
               <div className="space-y-2 text-sm font-mono">
                 <p><strong>NEXT_PUBLIC_API_URL:</strong> {process.env.NEXT_PUBLIC_API_URL || 'NOT SET'}</p>
-                <p><strong>NEXT_PUBLIC_SUPABASE_URL:</strong> {process.env.NEXT_PUBLIC_SUPABASE_URL || 'NOT SET'}</p>
-                <p><strong>NEXT_PUBLIC_SUPABASE_ANON_KEY:</strong> {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET (hidden)' : 'NOT SET'}</p>
+                <p><strong>NEXT_PUBLIC_AUTH_URL:</strong> {process.env.NEXT_PUBLIC_AUTH_URL || 'NOT SET'}</p>
+                <p><strong>NEXT_PUBLIC_FIELD_MANAGER_URL:</strong> {process.env.NEXT_PUBLIC_FIELD_MANAGER_URL || 'NOT SET'}</p>
+                <p><strong>NEXT_PUBLIC_FARM_ADMIN_URL:</strong> {process.env.NEXT_PUBLIC_FARM_ADMIN_URL || 'NOT SET'}</p>
                 <p><strong>NEXT_PUBLIC_SOCKET_URL:</strong> {process.env.NEXT_PUBLIC_SOCKET_URL || 'NOT SET'}</p>
                 <p><strong>NEXT_PUBLIC_APP_NAME:</strong> {process.env.NEXT_PUBLIC_APP_NAME || 'NOT SET'}</p>
                 <p><strong>NEXT_PUBLIC_APP_VERSION:</strong> {process.env.NEXT_PUBLIC_APP_VERSION || 'NOT SET'}</p>
@@ -27,11 +28,12 @@ export default function DebugEnvPage() {
             </div>
 
             <div className="bg-blue-50 p-4 rounded-lg">
-              <h2 className="text-xl font-semibold mb-4">Expected Values</h2>
+              <h2 className="text-xl font-semibold mb-4">Expected Microservices URLs</h2>
               <div className="space-y-2 text-sm">
-                <p><strong>NEXT_PUBLIC_API_URL:</strong> https://qvxcbdglyvzohzdefnet.supabase.co/functions/v1/farmtally-api</p>
-                <p><strong>NEXT_PUBLIC_SUPABASE_URL:</strong> https://qvxcbdglyvzohzdefnet.supabase.co</p>
-                <p><strong>NEXT_PUBLIC_SUPABASE_ANON_KEY:</strong> Should be set</p>
+                <p><strong>NEXT_PUBLIC_API_URL:</strong> http://147.93.153.247:8090 (API Gateway)</p>
+                <p><strong>NEXT_PUBLIC_AUTH_URL:</strong> http://147.93.153.247:8081 (Auth Service)</p>
+                <p><strong>NEXT_PUBLIC_FIELD_MANAGER_URL:</strong> http://147.93.153.247:8088 (Field Manager)</p>
+                <p><strong>NEXT_PUBLIC_FARM_ADMIN_URL:</strong> http://147.93.153.247:8089 (Farm Admin)</p>
               </div>
             </div>
 
@@ -40,17 +42,17 @@ export default function DebugEnvPage() {
               <button 
                 onClick={async () => {
                   try {
-                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://qvxcbdglyvzohzdefnet.supabase.co/functions/v1/farmtally-api';
-                    const response = await fetch(`${apiUrl}/health`);
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://147.93.153.247:8090';
+                    const response = await fetch(`${apiUrl}/`);
                     const data = await response.json();
-                    alert('API Test: ' + JSON.stringify(data, null, 2));
-                  } catch (error) {
+                    alert('API Gateway Test: ' + JSON.stringify(data, null, 2));
+                  } catch (error: any) {
                     alert('API Test Failed: ' + error.message);
                   }
                 }}
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
               >
-                Test API Connection
+                Test Microservices Connection
               </button>
             </div>
           </div>

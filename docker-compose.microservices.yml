@@ -1,0 +1,304 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14
+    container_name: farmtally-postgres
+    environment:
+      POSTGRES_DB: farmtally
+      POSTGRES_USER: farmtally_user
+      POSTGRES_PASSWORD: farmtally_password_2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # API Gateway Service
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: farmtally-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - ORGANIZATION_SERVICE_URL=http://organization-service:8082
+      - FARMER_SERVICE_URL=http://farmer-service:8083
+      - LORRY_SERVICE_URL=http://lorry-service:8084
+      - DELIVERY_SERVICE_URL=http://delivery-service:8085
+      - PAYMENT_SERVICE_URL=http://payment-service:8086
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8087
+      - FIELD_MANAGER_SERVICE_URL=http://field-manager-service:8088
+      - FARM_ADMIN_SERVICE_URL=http://farm-admin-service:8089
+      - REPORT_SERVICE_URL=http://report-service:8090
+    depends_on:
+      - postgres
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: farmtally-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - NODE_ENV=production
+      - PORT=8081
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - JWT_SECRET=your-super-secret-jwt-key-2024
+      - JWT_REFRESH_SECRET=your-super-secret-refresh-key-2024
+    depends_on:
+      - postgres
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Organization Service
+  organization-service:
+    build:
+      context: .
+      dockerfile: services/organization-service/Dockerfile
+    container_name: farmtally-organization-service
+    ports:
+      - "8082:8082"
+    environment:
+      - NODE_ENV=production
+      - PORT=8082
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Farmer Service
+  farmer-service:
+    build:
+      context: .
+      dockerfile: services/farmer-service/Dockerfile
+    container_name: farmtally-farmer-service
+    ports:
+      - "8083:8083"
+    environment:
+      - NODE_ENV=production
+      - PORT=8083
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - ORGANIZATION_SERVICE_URL=http://organization-service:8082
+    depends_on:
+      - postgres
+      - auth-service
+      - organization-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Lorry Service
+  lorry-service:
+    build:
+      context: .
+      dockerfile: services/lorry-service/Dockerfile
+    container_name: farmtally-lorry-service
+    ports:
+      - "8084:8084"
+    environment:
+      - NODE_ENV=production
+      - PORT=8084
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - ORGANIZATION_SERVICE_URL=http://organization-service:8082
+    depends_on:
+      - postgres
+      - auth-service
+      - organization-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Delivery Service
+  delivery-service:
+    build:
+      context: .
+      dockerfile: services/delivery-service/Dockerfile
+    container_name: farmtally-delivery-service
+    ports:
+      - "8085:8085"
+    environment:
+      - NODE_ENV=production
+      - PORT=8085
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - FARMER_SERVICE_URL=http://farmer-service:8083
+      - LORRY_SERVICE_URL=http://lorry-service:8084
+    depends_on:
+      - postgres
+      - auth-service
+      - farmer-service
+      - lorry-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Payment Service
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    container_name: farmtally-payment-service
+    ports:
+      - "8086:8086"
+    environment:
+      - NODE_ENV=production
+      - PORT=8086
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - FARMER_SERVICE_URL=http://farmer-service:8083
+      - DELIVERY_SERVICE_URL=http://delivery-service:8085
+    depends_on:
+      - postgres
+      - auth-service
+      - farmer-service
+      - delivery-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Notification Service
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    container_name: farmtally-notification-service
+    ports:
+      - "8087:8087"
+    environment:
+      - NODE_ENV=production
+      - PORT=8087
+      - EMAIL_HOST=smtp.hostinger.com
+      - EMAIL_PORT=587
+      - EMAIL_USER=noreply@farmtally.in
+      - EMAIL_PASS=FarmTally2024!
+      - SMS_PROVIDER=twilio
+      - TWILIO_SID=your-twilio-sid
+      - TWILIO_TOKEN=your-twilio-token
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Field Manager Service
+  field-manager-service:
+    build:
+      context: .
+      dockerfile: services/field-manager-service/Dockerfile
+    container_name: farmtally-field-manager-service
+    ports:
+      - "8088:8088"
+    environment:
+      - NODE_ENV=production
+      - PORT=8088
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - FARMER_SERVICE_URL=http://farmer-service:8083
+      - LORRY_SERVICE_URL=http://lorry-service:8084
+    depends_on:
+      - postgres
+      - auth-service
+      - farmer-service
+      - lorry-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Farm Admin Service
+  farm-admin-service:
+    build:
+      context: .
+      dockerfile: services/farm-admin-service/Dockerfile
+    container_name: farmtally-farm-admin-service
+    ports:
+      - "8089:8089"
+    environment:
+      - NODE_ENV=production
+      - PORT=8089
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - ORGANIZATION_SERVICE_URL=http://organization-service:8082
+      - LORRY_SERVICE_URL=http://lorry-service:8084
+      - DELIVERY_SERVICE_URL=http://delivery-service:8085
+    depends_on:
+      - postgres
+      - auth-service
+      - organization-service
+      - lorry-service
+      - delivery-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Report Service
+  report-service:
+    build:
+      context: .
+      dockerfile: services/report-service/Dockerfile
+    container_name: farmtally-report-service
+    ports:
+      - "8090:8090"
+    environment:
+      - NODE_ENV=production
+      - PORT=8090
+      - DATABASE_URL=postgresql://farmtally_user:farmtally_password_2024@postgres:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - FARMER_SERVICE_URL=http://farmer-service:8083
+      - DELIVERY_SERVICE_URL=http://delivery-service:8085
+      - PAYMENT_SERVICE_URL=http://payment-service:8086
+      - FIELD_MANAGER_SERVICE_URL=http://field-manager-service:8088
+      - FARM_ADMIN_SERVICE_URL=http://farm-admin-service:8089
+    depends_on:
+      - postgres
+      - auth-service
+      - farmer-service
+      - delivery-service
+      - payment-service
+      - field-manager-service
+      - farm-admin-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./farmtally-frontend
+      dockerfile: Dockerfile
+    container_name: farmtally-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://147.93.153.247:8080
+      - NODE_ENV=production
+    depends_on:
+      - api-gateway
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+networks:
+  farmtally-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

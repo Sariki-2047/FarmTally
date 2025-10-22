@@ -72,7 +72,7 @@ export default function SystemHealthPage() {
         lastCheck: new Date().toISOString()
       },
       {
-        name: "Database (Supabase)",
+        name: "Database (PostgreSQL)",
         status: "online",
         uptime: "99.9%",
         responseTime: 45,

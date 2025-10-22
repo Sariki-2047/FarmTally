@@ -1,0 +1,28 @@
+# FarmTally Frontend Deployment Commands
+# Run these commands after SSH'ing to your VPS
+
+# 1. SSH to VPS (run this in your terminal)
+ssh root@147.93.153.247
+
+# 2. Once connected to VPS, run these commands:
+
+# Make deployment script executable
+chmod +x deploy-to-vps.sh
+
+# Run the deployment script
+./deploy-to-vps.sh
+
+# 3. After deployment, test these URLs in your browser:
+# Main application: http://147.93.153.247/
+# API test page: http://147.93.153.247/test-api
+
+# 4. If you need to check logs:
+# Nginx error log: tail -f /var/log/nginx/error.log
+# Nginx access log: tail -f /var/log/nginx/access.log
+# Nginx status: systemctl status nginx
+
+# 5. Test microservices directly (optional):
+# curl http://localhost:8090/
+# curl http://localhost:8081/health
+# curl http://localhost:8088/health
+# curl http://localhost:8089/health

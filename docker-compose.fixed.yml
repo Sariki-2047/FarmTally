@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # Auth Service
+  auth-service:
+    image: node:18-alpine
+    container_name: farmtally-auth-service-fixed
+    working_dir: /app
+    command: sh -c "npm install && node server.js"
+    ports:
+      - "8081:8081"
+    environment:
+      - NODE_ENV=production
+      - PORT=8081
+      - DATABASE_URL=postgresql://farmtally:farmtally123@farmtally-db-isolated:5432/farmtally
+      - JWT_SECRET=your-super-secret-jwt-key-2024
+      - JWT_REFRESH_SECRET=your-super-secret-refresh-key-2024
+    volumes:
+      - /opt/farmtally/services/auth-service:/app
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Field Manager Service
+  field-manager-service:
+    image: node:18-alpine
+    container_name: farmtally-field-manager-service-fixed
+    working_dir: /app
+    command: sh -c "npm install && node server.js"
+    ports:
+      - "8088:8088"
+    environment:
+      - NODE_ENV=production
+      - PORT=8088
+      - DATABASE_URL=postgresql://farmtally:farmtally123@farmtally-db-isolated:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+    volumes:
+      - /opt/farmtally/services/field-manager-service:/app
+    depends_on:
+      - auth-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # Farm Admin Service
+  farm-admin-service:
+    image: node:18-alpine
+    container_name: farmtally-farm-admin-service-fixed
+    working_dir: /app
+    command: sh -c "npm install && node server.js"
+    ports:
+      - "8089:8089"
+    environment:
+      - NODE_ENV=production
+      - PORT=8089
+      - DATABASE_URL=postgresql://farmtally:farmtally123@farmtally-db-isolated:5432/farmtally
+      - AUTH_SERVICE_URL=http://auth-service:8081
+    volumes:
+      - /opt/farmtally/services/farm-admin-service:/app
+    depends_on:
+      - auth-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+  # API Gateway
+  api-gateway:
+    image: node:18-alpine
+    container_name: farmtally-api-gateway-fixed
+    working_dir: /app
+    command: sh -c "npm install && node server.js"
+    ports:
+      - "8090:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - FIELD_MANAGER_SERVICE_URL=http://field-manager-service:8088
+      - FARM_ADMIN_SERVICE_URL=http://farm-admin-service:8089
+    volumes:
+      - /opt/farmtally/services/api-gateway:/app
+    depends_on:
+      - auth-service
+      - field-manager-service
+      - farm-admin-service
+    networks:
+      - farmtally-network
+    restart: unless-stopped
+
+networks:
+  farmtally-network:
+    external: true

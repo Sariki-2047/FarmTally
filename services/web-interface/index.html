@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmTally Microservices Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2E7D32 0%, #4CAF50 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .service-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border-left: 5px solid #4CAF50;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .service-card h3 {
+            color: #2E7D32;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+        
+        .service-info {
+            margin-bottom: 20px;
+        }
+        
+        .service-info p {
+            margin-bottom: 8px;
+            color: #666;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .status.healthy {
+            background: #e8f5e8;
+            color: #2E7D32;
+        }
+        
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #45a049;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .auth-section {
+            background: #e3f2fd;
+            margin: 20px 30px;
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 5px solid #2196F3;
+        }
+        
+        .auth-section h3 {
+            color: #1976D2;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        
+        .response-area {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌾 FarmTally Microservices</h1>
+            <p>Production Dashboard - VPS: 147.93.153.247</p>
+        </div>
+        
+        <div class="services-grid">
+            <!-- API Gateway -->
+            <div class="service-card">
+                <h3>🚪 API Gateway</h3>
+                <div class="service-info">
+                    <p><strong>Port:</strong> 8090</p>
+                    <p><strong>Function:</strong> Request routing & orchestration</p>
+                    <p><strong>Status:</strong> <span id="gateway-status" class="status loading">Checking...</span></p>
+                </div>
+                <div class="buttons">
+                    <a href="http://147.93.153.247:8090" target="_blank" class="btn btn-primary">Open Service</a>
+                    <a href="http://147.93.153.247:8090/health" target="_blank" class="btn btn-secondary">Health Check</a>
+                    <button onclick="testService('gateway', 8090)" class="btn btn-secondary">Test API</button>
+                </div>
+            </div>
+            
+            <!-- Auth Service -->
+            <div class="service-card">
+                <h3>🔐 Auth Service</h3>
+                <div class="service-info">
+                    <p><strong>Port:</strong> 8081</p>
+                    <p><strong>Function:</strong> User authentication & authorization</p>
+                    <p><strong>Status:</strong> <span id="auth-status" class="status loading">Checking...</span></p>
+                </div>
+                <div class="buttons">
+                    <a href="http://147.93.153.247:8081" target="_blank" class="btn btn-primary">Open Service</a>
+                    <a href="http://147.93.153.247:8081/health" target="_blank" class="btn btn-secondary">Health Check</a>
+                    <button onclick="testAuth()" class="btn btn-secondary">Test Login</button>
+                </div>
+            </div>
+            
+            <!-- Field Manager Service -->
+            <div class="service-card">
+                <h3>👨‍🌾 Field Manager</h3>
+                <div class="service-info">
+                    <p><strong>Port:</strong> 8088</p>
+                    <p><strong>Function:</strong> Field operations & workflows</p>
+                    <p><strong>Status:</strong> <span id="fieldmanager-status" class="status loading">Checking...</span></p>
+                </div>
+                <div class="buttons">
+                    <a href="http://147.93.153.247:8088" target="_blank" class="btn btn-primary">Open Service</a>
+                    <a href="http://147.93.153.247:8088/health" target="_blank" class="btn btn-secondary">Health Check</a>
+                    <button onclick="testService('fieldmanager', 8088)" class="btn btn-secondary">Test API</button>
+                </div>
+            </div>
+            
+            <!-- Farm Admin Service -->
+            <div class="service-card">
+                <h3>🏢 Farm Admin</h3>
+                <div class="service-info">
+                    <p><strong>Port:</strong> 8089</p>
+                    <p><strong>Function:</strong> Admin dashboard & management</p>
+                    <p><strong>Status:</strong> <span id="farmadmin-status" class="status loading">Checking...</span></p>
+                </div>
+                <div class="buttons">
+                    <a href="http://147.93.153.247:8089" target="_blank" class="btn btn-primary">Open Service</a>
+                    <a href="http://147.93.153.247:8089/health" target="_blank" class="btn btn-secondary">Health Check</a>
+                    <button onclick="testService('farmadmin', 8089)" class="btn btn-secondary">Test API</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Authentication Testing Section -->
+        <div class="auth-section">
+            <h3>🔑 Authentication Testing</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" value="admin@farmtally.com" placeholder="Enter email">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" value="Admin123!" placeholder="Enter password">
+                    </div>
+                    <div class="buttons">
+                        <button onclick="testLogin()" class="btn btn-primary">Test Login</button>
+                        <button onclick="testRegister()" class="btn btn-secondary">Test Register</button>
+                    </div>
+                </div>
+                <div>
+                    <label>Response:</label>
+                    <div id="auth-response" class="response-area">Click "Test Login" to authenticate...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>FarmTally Microservices Dashboard | Deployed: October 22, 2025 | Status: Production Ready ✅</p>
+        </div>
+    </div>
+
+    <script>
+        const VPS_HOST = '147.93.153.247';
+        let authToken = null;
+        
+        // Check service health on page load
+        window.onload = function() {
+            checkAllServices();
+        };
+        
+        async function checkAllServices() {
+            const services = [
+                { name: 'gateway', port: 8090 },
+                { name: 'auth', port: 8081 },
+                { name: 'fieldmanager', port: 8088 },
+                { name: 'farmadmin', port: 8089 }
+            ];
+            
+            for (const service of services) {
+                await checkServiceHealth(service.name, service.port);
+            }
+        }
+        
+        async function checkServiceHealth(serviceName, port) {
+            const statusElement = document.getElementById(`${serviceName}-status`);
+            
+            try {
+                const response = await fetch(`http://${VPS_HOST}:${port}/health`);
+                
+                if (response.ok) {
+                    statusElement.textContent = 'Healthy ✅';
+                    statusElement.className = 'status healthy';
+                } else {
+                    statusElement.textContent = 'Unhealthy ❌';
+                    statusElement.className = 'status error';
+                }
+            } catch (error) {
+                statusElement.textContent = 'Offline ❌';
+                statusElement.className = 'status error';
+            }
+        }
+        
+        async function testService(serviceName, port) {
+            try {
+                const response = await fetch(`http://${VPS_HOST}:${port}/health`);
+                const data = await response.json();
+                
+                alert(`${serviceName.toUpperCase()} Service Response:\n\n${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                alert(`Error testing ${serviceName} service:\n${error.message}`);
+            }
+        }
+        
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const responseArea = document.getElementById('auth-response');
+            
+            responseArea.textContent = 'Authenticating...';
+            
+            try {
+                const response = await fetch(`http://${VPS_HOST}:8081/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.data.tokens.accessToken;
+                    responseArea.innerHTML = `<strong>✅ Login Successful!</strong><br><br>` +
+                        `User: ${data.data.user.email}<br>` +
+                        `Role: ${data.data.user.role}<br>` +
+                        `Status: ${data.data.user.status}<br><br>` +
+                        `<small>Token: ${authToken.substring(0, 50)}...</small>`;
+                } else {
+                    responseArea.innerHTML = `<strong>❌ Login Failed</strong><br><br>${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                responseArea.innerHTML = `<strong>❌ Error</strong><br><br>${error.message}`;
+            }
+        }
+        
+        async function testRegister() {
+            const email = `test-${Date.now()}@farmtally.com`;
+            const password = 'TestPassword123!';
+            const responseArea = document.getElementById('auth-response');
+            
+            responseArea.textContent = 'Registering new user...';
+            
+            try {
+                const response = await fetch(`http://${VPS_HOST}:8081/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password,
+                        role: 'APPLICATION_ADMIN',
+                        profile: {
+                            firstName: 'Test',
+                            lastName: 'User'
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseArea.innerHTML = `<strong>✅ Registration Successful!</strong><br><br>` +
+                        `Email: ${email}<br>` +
+                        `Password: ${password}<br>` +
+                        `Message: ${data.message}<br><br>` +
+                        `<small>${JSON.stringify(data.data.user, null, 2)}</small>`;
+                } else {
+                    responseArea.innerHTML = `<strong>❌ Registration Failed</strong><br><br>${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                responseArea.innerHTML = `<strong>❌ Error</strong><br><br>${error.message}`;
+            }
+        }
+        
+        async function testAuth() {
+            await testLogin();
+        }
+    </script>
+</body>
+</html>

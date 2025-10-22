@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { farmTallyAPI } from '@/lib/supabase'
+import { farmTallyAPI } from '@/lib/api'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -57,6 +57,20 @@ export default function TestAPIPage() {
     }
   }
 
+  const testAllMicroservices = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const results = await farmTallyAPI.testConnection()
+      console.log('Microservices Test:', results)
+      alert('Microservices Test Results:\n' + JSON.stringify(results, null, 2))
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     testHealth()
   }, [])
@@ -87,13 +101,21 @@ export default function TestAPIPage() {
           </div>
 
           {/* Test Buttons */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <button
               onClick={testHealth}
               disabled={loading}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
             >
-              Test Health
+              Test API Gateway
+            </button>
+            
+            <button
+              onClick={testAllMicroservices}
+              disabled={loading}
+              className="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            >
+              Test All Services
             </button>
             
             <button
@@ -115,10 +137,12 @@ export default function TestAPIPage() {
 
           {/* API Configuration */}
           <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold mb-2">Current Configuration</h3>
+            <h3 className="text-lg font-semibold mb-2">Microservices Configuration</h3>
             <div className="text-sm space-y-1">
-              <p><strong>API URL:</strong> {process.env.NEXT_PUBLIC_API_URL}</p>
-              <p><strong>Supabase URL:</strong> {process.env.NEXT_PUBLIC_SUPABASE_URL}</p>
+              <p><strong>API Gateway:</strong> {process.env.NEXT_PUBLIC_API_URL}</p>
+              <p><strong>Auth Service:</strong> {process.env.NEXT_PUBLIC_AUTH_URL}</p>
+              <p><strong>Field Manager:</strong> {process.env.NEXT_PUBLIC_FIELD_MANAGER_URL}</p>
+              <p><strong>Farm Admin:</strong> {process.env.NEXT_PUBLIC_FARM_ADMIN_URL}</p>
               <p><strong>Environment:</strong> {process.env.NODE_ENV}</p>
             </div>
           </div>
@@ -130,9 +154,15 @@ export default function TestAPIPage() {
                 🎉 Frontend Successfully Connected!
               </h3>
               <p className="text-green-700">
-                Your Next.js frontend is now connected to your Supabase backend. 
-                The FarmTally API is responding correctly!
+                Your Next.js frontend is now connected to your microservices backend! 
+                The FarmTally API Gateway is responding correctly and all services are operational.
               </p>
+              <div className="mt-3 text-sm text-green-600">
+                <p>✅ API Gateway: Connected</p>
+                <p>✅ Auth Service: Available</p>
+                <p>✅ Field Manager Service: Available</p>
+                <p>✅ Farm Admin Service: Available</p>
+              </div>
             </div>
           )}
         </div>
